@@ -23,6 +23,7 @@ public:
 	virtual uint8_t * getAlpha(uint8_t val, uint16_t screen_width, uint16_t screen_height);
 	virtual uint8_t * getFrameData(uint8_t val, uint16_t screen_width, uint16_t screen_height);
 	virtual bool advanceState(uint8_t val, uint16_t screen_width, uint16_t screen_height);
+	virtual void resetCursor( void );
 };
 
 

@@ -127,6 +127,8 @@ uint8_t * MonochromeProgMemBMPFont::getFrameData(uint8_t val, uint16_t screen_wi
 	frameData[2] = _fontHeight;
 	frameData[3] = _fontWidth;
 	// It is critical that the number of uint16_t types returned by the BMP function is greater than or equal to height * width
+
+	return frameData;
 }
 
 bool MonochromeProgMemBMPFont::advanceState(uint8_t val, uint16_t screen_width, uint16_t screen_height)
@@ -370,7 +372,6 @@ uint8_t * SSD1357::getFontBMP(uint8_t val)
 		return chardata;
 	}
 	// Don't use default
-	Serial.println("HERE!");
 	return (*_userBMPFuncPtr)(_object2operateOn, val, _width, _height);
 }
 

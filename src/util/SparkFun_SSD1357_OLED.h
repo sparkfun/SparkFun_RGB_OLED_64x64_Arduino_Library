@@ -48,7 +48,7 @@ public:
 	uint8_t topMargin;
 	uint8_t bottomMargin;
 
-	uint8_t frameData[5];
+	uint8_t frameData[4];
 
 	MonochromeProgMemBMPFont(unsigned char * pMap, uint8_t * pPad, uint8_t * pAlphaPad, uint8_t headerSize);
 
