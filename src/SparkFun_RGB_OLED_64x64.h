@@ -14,17 +14,17 @@ A libary to use the SSD1357 driver in conjuction with a particular OLED display 
 #define OLED_64x64_HEIGHT 	64
 
 
-class RGB_OLED_64x64{
+class RGB_OLED_64x64 : protected SSD1357 {
 private:
 protected:
 public:
 
-	// SSD1357 * driverPtr;
-	SSD1357 oled_driver;
-
 	RGB_OLED_64x64();
 
-	void begin(uint8_t dcPin, uint8_t rstPin, uint8_t csPin, SPIClass &spiInterface = SPI);
+	void begin(uint8_t dcPin, uint8_t rstPin, uint8_t csPin, SPIClass &spiInterface = SPI, uint32_t spiFreq = SSD1357_SPI_MAX_FREQ);
+	void defaultConfigure( void );
+
+	void clear( void );
 };
 
 

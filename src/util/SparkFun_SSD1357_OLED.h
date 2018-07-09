@@ -38,6 +38,7 @@ private:
 protected:
 	// uint8_t getData(unsigned char * pdata);	// Needed to a
 	uint8_t _fontWidth, _fontHeight, _startCharASCII, _totalCharsASCII, _fontMapWidth, _fontHeaderSize;
+
 public:
 	unsigned char * fontMapPtr;
 	uint8_t * charDataPtr;
@@ -121,16 +122,21 @@ typedef enum{
 
 class SSD1357 : public Print {
 private:
+	
+protected:
+
 	uint8_t _dc, _rst, _cs;
 	SPIClass * _spi;
+
+	uint32_t _spiFreq;
 
 	uint8_t _width, _height;	// Physical dimensions of the display that the driver is connected to. Limited to 128x128
 
 
-
-protected:
 	void write_bytes(uint8_t * pdata, bool DATAcmd, uint16_t size);
 	void write_ram(uint8_t * pdata, uint8_t startrow, uint8_t startcol, uint8_t stoprow, uint8_t stopcol, uint16_t size);		// Raw data write to the GDDRAM 
+
+	void linkDefaultFont( void );
 
 	uint8_t * getFontBMP(uint8_t val);
 	uint8_t * getFontAlpha(uint8_t val);
@@ -148,8 +154,11 @@ public:
 
 	SSD1357( void );
 
-	void begin(uint8_t dcPin, uint8_t rstPin, uint8_t csPin, SPIClass &spiInterface = SPI);
+	virtual void begin(uint8_t dcPin, uint8_t rstPin, uint8_t csPin, SPIClass &spiInterface = SPI, uint32_t spiFreq = SSD1357_SPI_MAX_FREQ);
 	void startup( void );
+
+	void setCSlow( void );
+	void setCShigh(void);
 
 	// From print library
 	size_t write(uint8_t);
@@ -167,7 +176,7 @@ public:
 	void setResetPrechargePeriod(uint8_t reset_clocks, uint8_t precharge_clocks);
 	void setClockDivider(uint8_t divider_code);
 	void setSecondPrechargePeriod(uint8_t precharge_clocks);
-	// void setMLUTGrayscale(uint8_t * pdata63B);
+	void setMLUTGrayscale(uint8_t * pdata63B);
 	void useBuiltInLinearLUT( void );
 	void setPrechargeVoltage( uint8_t voltage_scale_code);
 	void setILUTColorA( uint8_t * pdata31B);
@@ -179,10 +188,12 @@ public:
 	void setCommandLock(bool locked);
 
 	// Setup the display
-	uint8_t getWidth( void );
-	uint8_t getHeight( void );
-	void 	setWidth(uint8_t val);
-	void 	setHeight(uint8_t val);
+	uint8_t 	getWidth( void );
+	uint8_t 	getHeight( void );
+	void 		setWidth(uint8_t val);
+	void 		setHeight(uint8_t val);
+	void 		setSPIFreq(uint32_t freq);
+	uint32_t	getSPIFreq( void );
 
 	// Interact with fonts
 	void 	setFont(
@@ -195,6 +206,9 @@ public:
 					);
 	void 	resetFontDefault( void );
 	void 	resetFontCursor(void);	// This guarantees that the user can always interact with the cursor reset function, even if the font is the default font that they can't access in the main file
+
+	void 	write_ram_wrapper(uint8_t * pdata, uint8_t startrow, uint8_t startcol, uint8_t stoprow, uint8_t stopcol, uint16_t size);
+
 };
 
 

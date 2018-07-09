@@ -243,7 +243,7 @@ SSD1357::SSD1357( void )
 	
 }
 
-void SSD1357::begin(uint8_t dcPin, uint8_t rstPin, uint8_t csPin, SPIClass &spiInterface = SPI)
+void SSD1357::begin(uint8_t dcPin, uint8_t rstPin, uint8_t csPin, SPIClass &spiInterface = SPI, uint32_t spiFreq = SSD1357_SPI_MAX_FREQ)
 {
 	// Associate 
 	_dc = dcPin;
@@ -251,18 +251,9 @@ void SSD1357::begin(uint8_t dcPin, uint8_t rstPin, uint8_t csPin, SPIClass &spiI
 	_cs = csPin;
 	_spi = &spiInterface;
 
-	// Load the default font
-	setFont(
-					&SSD1357DefFont5x7,
-					SSD1357DefFont5x7.Wrapper_to_call_getBMP, 
-					SSD1357DefFont5x7.Wrapper_to_call_getAlpha,
-					SSD1357DefFont5x7.Wrapper_to_call_getFrameData, 
-					SSD1357DefFont5x7.Wrapper_to_call_advanceState,
-					SSD1357DefFont5x7.Wrapper_to_call_resetCursor);
+	_spiFreq = spiFreq;
 
-	// Setup margins on the defualt font and zero out the cursor
-	SSD1357DefFont5x7.setMargins(0, 64, 0, 64);
-	SSD1357DefFont5x7.resetCursor();
+	linkDefaultFont();
 
 	// Set pinmodes
 	pinMode(_cs, OUTPUT);
@@ -276,45 +267,106 @@ void SSD1357::begin(uint8_t dcPin, uint8_t rstPin, uint8_t csPin, SPIClass &spiI
 
 
 	// Power up the device
-	startup();
+
+	
+	/* 
+	Okay, lesson time.
+	SPI is pretty darn cool and hard to mess up, write?
+	Mostly yes, but there is at least one gotcha that has
+	bitten me a few times. When using a single SPI bus to
+	talk to different devices that use different SPI
+	modes (MODE0, MODE1, MODE2, and MODE3) the bus settings
+	have to change. I've noticed that the first byte that 
+	is sent after a mode change can be mis-interpreted. I
+	have a hunch (but have not confirmed) that this is
+	due to a mis-match of the clock polarity at idle. This 
+	condition can also happen right after the SPI
+	hardware is started for the first time with SPI.begin.
+
+	I noticed that I had to call 'startup()' twice to get 
+	the display working. After being stumped and trying 
+	more delays and some code rearranging it struck me that 
+	startup() was the first time I ever sent data on the 
+	SPI peripheral.
+	
+	Without being bothered to 100% confirm the cause I
+	tried a solution: send a random byte to no particular
+	device (don't activate any chip selects) to 'set' the
+	SPI peripheral into the right mode of operation. This
+	technique, applied here, did the trick. This whole
+	problem is probably worth an in-depth investigation
+	in the future.
+
+	*/
+
+	// try starting SPI with a simple byte transmisssion to 'set' the SPI peripherals
+	uint8_t temp_buff;
+	_spi->beginTransaction(SPISettings(_spiFreq, SSD1357_SPI_DATA_ORDER, SSD1357_SPI_MODE));
+	_spi->transfer(temp_buff, 1);
+	_spi->endTransaction();
+
+	startup();	// It really bothers me that I have to call startup twice... I've trid adding more of a delay - oh! Maybe there is a SPI problem. Bingo. See note above
+}
+
+void SSD1357::setCSlow( void )
+{
+	digitalWrite(_cs, LOW);
+}
+
+void SSD1357::setCShigh(void)
+{
+	digitalWrite(_cs, HIGH);
 }
 
 void SSD1357::startup( void )
 {
+	// Assume that VDD and VCC are stable when this function is called
+
+	delay(20);
+
 	digitalWrite(_rst, LOW);
+	// delayMicroseconds(10);
 	delay(1);
-
 	digitalWrite(_rst, HIGH);
-	delayMicroseconds(5);
 
-	setDisplayMode(SSD1357_CMD_SDM_ALL_OFF);
+	delay(200);
 
-	setDisplayMode(SSD1357_CMD_SDM_RESET);
-	setDisplayMode(SSD1357_CMD_SDM_ALL_ON);
+	// Now you can do initialization
 }
 
 void SSD1357::write_ram(uint8_t * pdata, uint8_t startrow, uint8_t startcol, uint8_t stoprow, uint8_t stopcol, uint16_t size)
 {
+	
+
 	// Use commands to set the starting/ending locations in GDDRAM 
-	setColumnAddress(startrow, stoprow);
+	setRowAddress(startrow, stoprow);
 	setColumnAddress(startcol, stopcol);
 
 	// Use write_bytes() to send the data along with a data flag
+	setCSlow();
+
 	enableWriteRAM();
 	write_bytes(pdata, true, size);
+
+	setCShigh();
+}
+
+void 	SSD1357::write_ram_wrapper(uint8_t * pdata, uint8_t startrow, uint8_t startcol, uint8_t stoprow, uint8_t stopcol, uint16_t size)
+{
+	write_ram(pdata, startrow, startcol, stoprow, stopcol, size);
 }
 
 void SSD1357::write_bytes(uint8_t * pdata, bool DATAcmd, uint16_t size)
 {
-	digitalWrite(_cs, LOW);				// Set the chip select line
+	// digitalWrite(_cs, LOW);				// Set the chip select line
 	digitalWrite(_dc, DATAcmd);		// Set whether transmitting data or command
 
 	// Now transmit the data
-	_spi->beginTransaction(SPISettings(SSD1357_SPI_MAX_FREQ, SSD1357_SPI_DATA_ORDER, SSD1357_SPI_MODE));
+	_spi->beginTransaction(SPISettings(_spiFreq, SSD1357_SPI_DATA_ORDER, SSD1357_SPI_MODE));
 	_spi->transfer(pdata, size);
 	_spi->endTransaction();
 
-	digitalWrite(_cs, HIGH);			// Stop talking to the driver
+	// digitalWrite(_cs, HIGH);			// Stop talking to the driver
 }
 
 
@@ -359,6 +411,24 @@ size_t SSD1357::write(uint8_t val)
 	// Otherwise don't print anything
 	return 1;
 }
+
+
+void SSD1357::linkDefaultFont( void )
+{
+	// Load the default font
+	setFont(
+					&SSD1357DefFont5x7,
+					SSD1357DefFont5x7.Wrapper_to_call_getBMP, 
+					SSD1357DefFont5x7.Wrapper_to_call_getAlpha,
+					SSD1357DefFont5x7.Wrapper_to_call_getFrameData, 
+					SSD1357DefFont5x7.Wrapper_to_call_advanceState,
+					SSD1357DefFont5x7.Wrapper_to_call_resetCursor);
+
+	// Setup margins on the defualt font and zero out the cursor
+	SSD1357DefFont5x7.setMargins(0, 64, 0, 64);
+	SSD1357DefFont5x7.resetCursor();
+}
+
 
 uint8_t * SSD1357::getFontBMP(uint8_t val)
 {
@@ -442,8 +512,12 @@ void SSD1357::setColumnAddress(uint8_t start, uint8_t stop)
 	buff[1] = start;
 	buff[2] = stop;
 
+	setCSlow();
+
 	write_bytes(&buff[0], false, 1);	
 	write_bytes(&buff[1], true, 2);
+
+	setCShigh();
 }
 
 void SSD1357::setRowAddress(uint8_t start, uint8_t stop)
@@ -453,8 +527,12 @@ void SSD1357::setRowAddress(uint8_t start, uint8_t stop)
 	buff[1] = start;
 	buff[2] = stop;
 
+	setCSlow();
+
 	write_bytes(&buff[0], false, 1);	
 	write_bytes(&buff[1], true, 2);
+
+	setCShigh();
 }
 
 void SSD1357::enableWriteRAM( void )
@@ -473,9 +551,10 @@ void SSD1357::enableReadRAM( void )
 
 void SSD1357::setRemapColorDepth(bool inc_Vh, bool rev_ColAddr, bool swap_ColOrder, bool rev_SCAN, bool en_SplitOddEven, uint8_t color_depth_code)
 {
-	uint8_t buff[2];
+	uint8_t buff[3];
 	buff[0] = SSD1357_CMD_SetRemapColorDepth;
 	buff[1] = 0x00;
+	buff[2] = 0x00;
 	if(inc_Vh)
 	{
 		buff[1] |= 0x01;
@@ -498,8 +577,12 @@ void SSD1357::setRemapColorDepth(bool inc_Vh, bool rev_ColAddr, bool swap_ColOrd
 	}
 	buff[1] |= ((0x03 & color_depth_code) << 6);
 
+	setCSlow();
+
 	write_bytes(&buff[0], false, 1);	
-	write_bytes(&buff[1], true, 1);
+	write_bytes(&buff[1], true, 2);
+
+	setCShigh();
 }
 
 void SSD1357::setDisplayStartLine(uint8_t start_line)
@@ -508,8 +591,12 @@ void SSD1357::setDisplayStartLine(uint8_t start_line)
 	buff[0] = SSD1357_CMD_SetDisplayStartLine;
 	buff[1] = start_line;
 
+	setCSlow();
+
 	write_bytes(&buff[0], false, 1);	
 	write_bytes(&buff[1], true, 1);
+
+	setCShigh();
 }
 
 void SSD1357::setDisplayOffset(uint8_t offset)
@@ -518,21 +605,30 @@ void SSD1357::setDisplayOffset(uint8_t offset)
 	buff[0] = SSD1357_CMD_SetDisplayOffset;
 	buff[1] = offset;
 
+	setCSlow();
+
 	write_bytes(&buff[0], false, 1);	
 	write_bytes(&buff[1], true, 1);
+
+	setCShigh();
 }
 
 void SSD1357::setDisplayMode(uint8_t mode_code)
 {
 	uint8_t buff[1];
 	buff[0] = mode_code;
+
+	setCSlow();
+
 	write_bytes(&buff[0], false, 1);
+
+	setCShigh();
 }
 
 void SSD1357::setSleepMode(bool sleep_on)
 {
 	uint8_t buff[1];
-	if(sleep_on)
+	if(sleep_on == true)
 	{
 		buff[0] = SSD1357_CMD_SetSleepMode_ON;
 	}
@@ -540,7 +636,12 @@ void SSD1357::setSleepMode(bool sleep_on)
 	{
 		buff[0] = SSD1357_CMD_SetSleepMode_OFF;
 	}
+
+	setCSlow();
+
 	write_bytes(&buff[0], false, 1);
+
+	setCShigh();
 }
 
 void SSD1357::setResetPrechargePeriod(uint8_t reset_clocks, uint8_t precharge_clocks)
@@ -548,8 +649,13 @@ void SSD1357::setResetPrechargePeriod(uint8_t reset_clocks, uint8_t precharge_cl
 	uint8_t buff[2];
 	buff[0] = SSD1357_CMD_SetResetPrechargePeriod;
 	buff[1] = (((precharge_clocks & 0x0F) << 4) | (reset_clocks & 0x0F));
+
+	setCSlow();
+
 	write_bytes(&buff[0], false, 1);
 	write_bytes(&buff[1], true, 1);
+
+	setCShigh();
 }
 
 void SSD1357::setClockDivider(uint8_t divider_code)
@@ -557,8 +663,13 @@ void SSD1357::setClockDivider(uint8_t divider_code)
 	uint8_t buff[2];
 	buff[0] = SSD1357_CMD_SetClkDiv;
 	buff[1] = divider_code;
+
+	setCSlow();
+
 	write_bytes(&buff[0], false, 1);
 	write_bytes(&buff[1], true, 1);
+
+	setCShigh();
 }
 
 void SSD1357::setSecondPrechargePeriod(uint8_t precharge_clocks)
@@ -566,22 +677,40 @@ void SSD1357::setSecondPrechargePeriod(uint8_t precharge_clocks)
 	uint8_t buff[2];
 	buff[0] = SSD1357_CMD_SetSecondPrechargePeriod;
 	buff[1] = precharge_clocks;
+
+	setCSlow();
+
 	write_bytes(&buff[0], false, 1);
 	write_bytes(&buff[1], true, 1);
+
+	setCShigh();
 }
 
-/*
+
 void SSD1357::setMLUTGrayscale(uint8_t * pdata63B)
 {
+	uint8_t buff[1];
+	buff[0] = SSD1357_CMD_MLUTGrayscale;
 
+	setCSlow();
+
+	write_bytes(&buff[0], false, 1);
+	write_bytes(pdata63B, true, 63);
+
+	setCShigh();
 }
-*/
+
 
 void SSD1357::useBuiltInLinearLUT( void )
 {
 	uint8_t buff[1];
 	buff[0] = SSD1357_CMD_UseDefMLUT;
+
+	setCSlow();
+
 	write_bytes(&buff[0], false, 1);
+
+	setCShigh();
 }
 
 void SSD1357::setPrechargeVoltage( uint8_t voltage_scale_code)
@@ -589,8 +718,13 @@ void SSD1357::setPrechargeVoltage( uint8_t voltage_scale_code)
 	uint8_t buff[2];
 	buff[0] = SSD1357_CMD_SetPrechargeVoltage;
 	buff[1] = voltage_scale_code;
+
+	setCSlow();
+
 	write_bytes(&buff[0], false, 1);
 	write_bytes(&buff[1], true, 1);
+
+	setCShigh();
 }
 
 /*
@@ -612,8 +746,13 @@ void SSD1357::setVCOMH( uint8_t voltage_scale_code)
 	uint8_t buff[2];
 	buff[0] = SSD1357_CMD_SetVCOMH;
 	buff[1] = voltage_scale_code;
+
+	setCSlow();
+
 	write_bytes(&buff[0], false, 1);
 	write_bytes(&buff[1], true, 1);
+
+	setCShigh();
 }
 
 void SSD1357::setContrastCurrentABC(uint8_t ccA, uint8_t ccB, uint8_t ccC)
@@ -623,31 +762,46 @@ void SSD1357::setContrastCurrentABC(uint8_t ccA, uint8_t ccB, uint8_t ccC)
 	buff[1] = ccA;
 	buff[2] = ccB;
 	buff[3] = ccC;
+
+	setCSlow();
+
 	write_bytes(&buff[0], false, 1);
 	write_bytes(&buff[1], true, 3);
+
+	setCShigh();
 }
 void SSD1357::setMasterContrastCurrent(uint8_t ccCode)
 {
 	uint8_t buff[2];
 	buff[0] = SSD1357_CMD_SetMasterContrastCurrent;
 	buff[1] = ccCode;
+
+	setCSlow();
+
 	write_bytes(&buff[0], false, 1);
 	write_bytes(&buff[1], true, 1);
+
+	setCShigh();
 }
 void SSD1357::setMUXRatio(uint8_t mux_ratio)
 {
 	uint8_t buff[2];
 	buff[0] = SSD1357_CMD_SetMuxRatio;
 	buff[1] = mux_ratio;
+
+	setCSlow();
+
 	write_bytes(&buff[0], false, 1);
 	write_bytes(&buff[1], true, 1);
+
+	setCShigh();
 }
 void SSD1357::setCommandLock(bool locked)
 {
 
 	uint8_t buff[2];
 	buff[0] = SSD1357_CMD_SetCommandLock;
-	if(locked)
+	if(locked == true)
 	{
 		buff[1] = 0x16;
 	}
@@ -655,8 +809,13 @@ void SSD1357::setCommandLock(bool locked)
 	{
 		buff[1] = 0x12;
 	}
+
+	setCSlow();
+
 	write_bytes(&buff[0], false, 1);
 	write_bytes(&buff[1], true, 1);
+
+	setCShigh();
 }
 
 uint8_t SSD1357::getWidth( void )
@@ -664,19 +823,29 @@ uint8_t SSD1357::getWidth( void )
 	return _width;
 }
 
-uint8_t SSD1357::getHeight( void )
+uint8_t 	SSD1357::getHeight( void )
 {
 	return _height;
 }
 
-void 	SSD1357::setWidth(uint8_t val)
+void 		SSD1357::setWidth(uint8_t val)
 {
 	_width = val;
 }
 
-void 	SSD1357::setHeight(uint8_t val)
+void 		SSD1357::setHeight(uint8_t val)
 {
 	_height = val;
+}
+
+void 		SSD1357::setSPIFreq(uint32_t freq)
+{
+	_spiFreq = freq;
+}
+
+uint32_t	SSD1357::getSPIFreq( void )
+{
+	return _spiFreq;
 }
 
 void 	SSD1357::setFont(
