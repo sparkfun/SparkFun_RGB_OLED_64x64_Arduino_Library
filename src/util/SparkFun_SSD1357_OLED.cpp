@@ -6,6 +6,17 @@ INDEX:
 
 */
 
+
+
+
+
+
+
+
+
+
+
+
 #ifndef SSD1357_DONT_USE_DEF_FONT
 uint8_t defFontScratch[5*8*2];		// A working area to convert the bit-encoded data to 16bit
 MonochromeProgMemBMPFont SSD1357DefFont5x7(font5x7,defFontScratch, NULL, 6);	// This has to be defined here as opposed to in the h file because of multiple inclusion errors. This means that the user will not be able to operate on it (private to this cpp file) but thats OK because it is the default and not meant to be modified.	
@@ -326,7 +337,7 @@ void SSD1357::startup( void )
 
 	digitalWrite(_rst, LOW);
 	// delayMicroseconds(10);
-	delay(1);
+	delay(5);
 	digitalWrite(_rst, HIGH);
 
 	delay(200);
@@ -336,34 +347,30 @@ void SSD1357::startup( void )
 
 void SSD1357::write_ram(uint8_t * pdata, uint8_t startrow, uint8_t startcol, uint8_t stoprow, uint8_t stopcol, uint16_t size)
 {
-	
-
 	// Use commands to set the starting/ending locations in GDDRAM 
 	setRowAddress(startrow, stoprow);
 	setColumnAddress(startcol, stopcol);
 
 	// Use write_bytes() to send the data along with a data flag
+	enableWriteRAM();				
+
 	setCSlow();
 
-	enableWriteRAM();
 	write_bytes(pdata, true, size);
 
 	setCShigh();
-}
-
-void 	SSD1357::write_ram_wrapper(uint8_t * pdata, uint8_t startrow, uint8_t startcol, uint8_t stoprow, uint8_t stopcol, uint16_t size)
-{
-	write_ram(pdata, startrow, startcol, stoprow, stopcol, size);
 }
 
 void SSD1357::write_bytes(uint8_t * pdata, bool DATAcmd, uint16_t size)
 {
 	// digitalWrite(_cs, LOW);				// Set the chip select line
 	digitalWrite(_dc, DATAcmd);		// Set whether transmitting data or command
+	delayMicroseconds(5);
 
 	// Now transmit the data
 	_spi->beginTransaction(SPISettings(_spiFreq, SSD1357_SPI_DATA_ORDER, SSD1357_SPI_MODE));
-	_spi->transfer(pdata, size);
+	// _spi->transferOut(pdata, size);			// FYI this function would solve a lot of problems but it is not part of Arduino yet. All it does is send out a buffer without modifying the contents. If you need extra performance then try to implement something similar
+	_spi->transfer(pdata, size);			
 	_spi->endTransaction();
 
 	// digitalWrite(_cs, HIGH);			// Stop talking to the driver
@@ -539,14 +546,24 @@ void SSD1357::enableWriteRAM( void )
 {
 	uint8_t buff[1];
 	buff[0] = SSD1357_CMD_WriteRAM;
+
+	setCSlow();
+
 	write_bytes(&buff[0], false, 1);
+
+	setCShigh();
 }
 
 void SSD1357::enableReadRAM( void )
 {
 	uint8_t buff[1];
 	buff[0] = SSD1357_CMD_ReadRAM;
+
+	setCSlow();
+
 	write_bytes(&buff[0], false, 1);
+
+	setCShigh();
 }
 
 void SSD1357::setRemapColorDepth(bool inc_Vh, bool rev_ColAddr, bool swap_ColOrder, bool rev_SCAN, bool en_SplitOddEven, uint8_t color_depth_code)
@@ -576,6 +593,15 @@ void SSD1357::setRemapColorDepth(bool inc_Vh, bool rev_ColAddr, bool swap_ColOrd
 		buff[1] |= 0x20;
 	}
 	buff[1] |= ((0x03 & color_depth_code) << 6);
+
+	if((0x03 & color_depth_code) == SSD1357_COLOR_MODE_65k)
+	{
+		_colorMode = SSD1357_COLOR_MODE_65k;
+	}
+	else if((0x03 & color_depth_code) == SSD1357_COLOR_MODE_256)
+	{
+		_colorMode = SSD1357_COLOR_MODE_256;
+	}
 
 	setCSlow();
 
@@ -817,6 +843,81 @@ void SSD1357::setCommandLock(bool locked)
 
 	setCShigh();
 }
+
+
+
+
+
+
+
+
+
+
+
+void SSD1357::setupHorizontalScroll(uint8_t scrollParameter, uint8_t startRow, uint8_t stopRow, uint8_t speed)
+{
+	uint8_t buff[6];
+	buff[0] = SSD1357_CMD_Setup_Scrolling;
+	buff[1] = scrollParameter;
+	buff[2] = (startRow & 0x7F);
+	buff[3] = (stopRow & 0x7F);
+	buff[4] = (0x00); // Reserved
+	buff[5] = (speed & 0x03);
+
+	setCSlow();
+
+	write_bytes(&buff[0], false, 1);
+	write_bytes(&buff[1], true, 5);
+
+	setCShigh();
+}
+	
+void SSD1357::startScrolling( void )
+{
+	uint8_t buff[1];
+	buff[0] = SSD1357_SCROLL_START;
+
+	setCSlow();
+
+	write_bytes(&buff[0], false, 1);
+
+	setCShigh();
+}
+
+void SSD1357::stopScrolling( void )
+{
+	uint8_t buff[1];
+	buff[0] = SSD1357_SCROLL_STOP;
+
+	setCSlow();
+
+	write_bytes(&buff[0], false, 1);
+
+	setCShigh();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 uint8_t SSD1357::getWidth( void )
 {

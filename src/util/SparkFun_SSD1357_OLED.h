@@ -29,6 +29,18 @@ Owen Lyke
 #define SSD1357_MAX_WIDTH 128
 #define SSD1357_MAX_HEIGHT 128
 
+#define SSD1357_COLOR_MODE_256 0x00
+#define SSD1357_COLOR_MODE_65k 0x01
+// #define SSD1357_COLOR_MODE_p262k1 0x02
+// #define SSD1357_COLOR_MODE_p262k2 0x03
+
+
+
+
+
+
+
+
 
 
 
@@ -115,7 +127,12 @@ typedef enum{
 	// Discontinuous
 	SSD1357_CMD_NOP = 0xE3,
 	// Discontinuous
-	SSD1357_CMD_SetCommandLock = 0xFD
+	SSD1357_CMD_SetCommandLock = 0xFD, 
+	// Discontinuous
+	SSD1357_CMD_Setup_Scrolling = 0x96,
+	// Discontinuous
+	SSD1357_SCROLL_STOP = 0x9E,
+	SSD1357_SCROLL_START
 }SSD1357_CMD_TypeDef;
 
 
@@ -132,9 +149,10 @@ protected:
 
 	uint8_t _width, _height;	// Physical dimensions of the display that the driver is connected to. Limited to 128x128
 
+	uint8_t _colorMode;			// Knows if the display is in 65k or 256 color mode
 
-	void write_bytes(uint8_t * pdata, bool DATAcmd, uint16_t size);
-	void write_ram(uint8_t * pdata, uint8_t startrow, uint8_t startcol, uint8_t stoprow, uint8_t stopcol, uint16_t size);		// Raw data write to the GDDRAM 
+	void 	write_bytes(uint8_t * pdata, bool DATAcmd, uint16_t size);
+	void 	write_ram(uint8_t * pdata, uint8_t startrow, uint8_t startcol, uint8_t stoprow, uint8_t stopcol, uint16_t size);		// Raw data write to the GDDRAM 
 
 	void linkDefaultFont( void );
 
@@ -187,6 +205,11 @@ public:
 	void setMUXRatio(uint8_t mux_ratio);
 	void setCommandLock(bool locked);
 
+	// Scrolling
+	void setupHorizontalScroll(uint8_t scrollParameter, uint8_t startRow, uint8_t stopRow, uint8_t speed);
+	void startScrolling( void );
+	void stopScrolling( void );
+
 	// Setup the display
 	uint8_t 	getWidth( void );
 	uint8_t 	getHeight( void );
@@ -206,9 +229,6 @@ public:
 					);
 	void 	resetFontDefault( void );
 	void 	resetFontCursor(void);	// This guarantees that the user can always interact with the cursor reset function, even if the font is the default font that they can't access in the main file
-
-	void 	write_ram_wrapper(uint8_t * pdata, uint8_t startrow, uint8_t startcol, uint8_t stoprow, uint8_t stopcol, uint16_t size);
-
 };
 
 
