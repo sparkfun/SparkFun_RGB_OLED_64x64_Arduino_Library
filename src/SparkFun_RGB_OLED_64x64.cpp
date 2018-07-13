@@ -695,3 +695,15 @@ void RGB_OLED_64x64::scrollStop(void)
 {
 	stopScrolling();
 }
+
+
+
+
+
+
+
+
+void RGB_OLED_64x64::setCursor(uint8_t x, uint8_t y)
+{
+	
+}

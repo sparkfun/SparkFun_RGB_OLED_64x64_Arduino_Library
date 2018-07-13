@@ -50,16 +50,17 @@ private:
 protected:
 	// uint8_t getData(unsigned char * pdata);	// Needed to a
 	uint8_t _fontWidth, _fontHeight, _startCharASCII, _totalCharsASCII, _fontMapWidth, _fontHeaderSize;
+	
 
 public:
 	unsigned char * fontMapPtr;
 	uint8_t * charDataPtr;
 	uint8_t * alphaDataPtr;
 
-	uint8_t leftMargin;
-	uint8_t rightMargin;
-	uint8_t topMargin;
-	uint8_t bottomMargin;
+	// uint8_t leftMargin;
+	// uint8_t rightMargin;
+	// uint8_t topMargin;
+	// uint8_t bottomMargin;
 
 	uint8_t frameData[4];
 
@@ -69,16 +70,16 @@ public:
 	uint8_t * getAlpha(uint8_t val, uint16_t screen_width, uint16_t screen_height);
 	uint8_t * getFrameData(uint8_t val, uint16_t screen_width, uint16_t screen_height);
 	bool advanceState(uint8_t val, uint16_t screen_width, uint16_t screen_height);
-	void resetCursor( void );
+	// void setCursor( uint16_t x, uint16_t y);
 
-	void setMargins(uint8_t left, uint8_t right, uint8_t top, uint8_t bottom);
+	// void setMargins(uint8_t left, uint8_t right, uint8_t top, uint8_t bottom);
 
 	// Here are some shenanigans: static function wrappers to allow the driver to call the member functions...
 	static uint8_t * Wrapper_to_call_getBMP(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height);
 	static uint8_t * Wrapper_to_call_getAlpha(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height);
 	static uint8_t * Wrapper_to_call_getFrameData(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height);
 	static bool Wrapper_to_call_advanceState(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height);
-	static void Wrapper_to_call_resetCursor(void * pt2Object);
+	static void Wrapper_to_call_setCursorValues(void * pt2Object, uint16_t x, uint16_t y, uint16_t xReset, uint16_t yReset, uint16_t xMargin, uint16_t yMargin);
 };
 
 
@@ -166,7 +167,7 @@ protected:
 	uint8_t 	* (*_userAlphaFuncPtr)(void *, uint8_t, uint8_t, uint8_t);
 	uint8_t 	* (*_userFrameFuncPtr)(void *, uint8_t, uint8_t, uint8_t);
 	bool 		(*_userFontCallbackPtr)(void *, uint8_t, uint8_t, uint8_t);
-	void 		(*_userFontResetCursorPtr)(void *);
+	void 		(*_userFontSetCursorValuesPtr)(void *, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t);
 
 public:
 
@@ -225,10 +226,10 @@ public:
 					uint8_t * (*AlphaFuncPtr)(void * pt2Object, uint8_t, uint8_t, uint8_t),
 					uint8_t * (*frameFuncPtr)(void * pt2Object, uint8_t, uint8_t, uint8_t), 
 					bool 	(*fontCallbackPtr)(void * pt2Object, uint8_t, uint8_t, uint8_t),
-					void 	(*resetCursorPtr)(void * pt2Object) 
+					void 	(*resetCursorValuesPtr)(void * pt2Object) 
 					);
 	void 	resetFontDefault( void );
-	void 	resetFontCursor(void);	// This guarantees that the user can always interact with the cursor reset function, even if the font is the default font that they can't access in the main file
+	void 	setFontCursorValues(uint8_t x, uint8_t y, uint8_t xReset, uint8_t yReset, uint8_t xMargin, uint8_t yMargin);	// This guarantees that the user can always interact with the cursor reset function, even if the font is the default font that they can't access in the main file
 };
 
 

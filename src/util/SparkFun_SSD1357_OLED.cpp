@@ -32,6 +32,8 @@ MonochromeProgMemBMPFont::MonochromeProgMemBMPFont(unsigned char * pMap, uint8_t
 	alphaDataPtr = pAlphaPad;
 	_fontHeaderSize = headerSize;
 
+	_prevWriteCausedNewline = false;
+
 	_fontWidth = pgm_read_byte(fontMapPtr + 0);
 	_fontHeight = pgm_read_byte(fontMapPtr + 1);
 	_startCharASCII = pgm_read_byte(fontMapPtr + 2);
@@ -39,18 +41,13 @@ MonochromeProgMemBMPFont::MonochromeProgMemBMPFont(unsigned char * pMap, uint8_t
 	_fontMapWidth = (pgm_read_byte(fontMapPtr + 4) * 100) + pgm_read_byte(fontMapPtr + 5);	// Right at this moment I'm not sure how this works.. Why high byte * 100? Why not * 256?
 }
 
-void MonochromeProgMemBMPFont::resetCursor( void )
-{
-	setCursor(0, 0);	// Function and x/y values inherited from CustomFont65k
-}
-
-void MonochromeProgMemBMPFont::setMargins(uint8_t left, uint8_t right, uint8_t top, uint8_t bottom)
-{
-	leftMargin = left;
-	rightMargin = right;
-	topMargin = top;
-	bottomMargin = bottom;
-}
+// void MonochromeProgMemBMPFont::setMargins(uint8_t left, uint8_t right, uint8_t top, uint8_t bottom)
+// {
+// 	leftMargin = left;
+// 	rightMargin = right;
+// 	topMargin = top;
+// 	bottomMargin = bottom;
+// }
 
 uint8_t * MonochromeProgMemBMPFont::getBMP(uint8_t val, uint16_t screen_width, uint16_t screen_height)
 {
@@ -65,13 +62,13 @@ uint8_t * MonochromeProgMemBMPFont::getBMP(uint8_t val, uint16_t screen_width, u
 
 	uint8_t data_byte = 0;
 
-	uint8_t tempcount = 0;
-	Serial.print("Font width: "); Serial.println(_fontWidth, DEC);
-	Serial.print("Font height: "); Serial.println(_fontHeight, DEC);
-	Serial.print("Val: 0x"); Serial.println(val, HEX);
-	Serial.print("ASCII start char: "); Serial.println(_startCharASCII, DEC);
-	Serial.print("Total chars: "); Serial.println(_totalCharsASCII, DEC);
-	Serial.print("ASCII Char Difference: "); Serial.println(ascii_char_diff, DEC);
+	// uint8_t tempcount = 0;
+	// Serial.print("Font width: "); Serial.println(_fontWidth, DEC);
+	// Serial.print("Font height: "); Serial.println(_fontHeight, DEC);
+	// Serial.print("Val: 0x"); Serial.println(val, HEX);
+	// Serial.print("ASCII start char: "); Serial.println(_startCharASCII, DEC);
+	// Serial.print("Total chars: "); Serial.println(_totalCharsASCII, DEC);
+	// Serial.print("ASCII Char Difference: "); Serial.println(ascii_char_diff, DEC);
 
 	for(uint16_t char_index = 0; char_index < 2*(_fontWidth * _fontHeight); char_index+=2)
 	{
@@ -101,21 +98,21 @@ uint8_t * MonochromeProgMemBMPFont::getBMP(uint8_t val, uint16_t screen_width, u
 		{
 			*(charDataPtr + char_index) = 0xFF;
 			*(charDataPtr + char_index + 1) = 0xFF; 
-			Serial.print("X");
+			// Serial.print("X");
 		}
 		else
 		{
 			*(charDataPtr + char_index) = 0x00;
 			*(charDataPtr + char_index + 1) = 0x00; 
-			Serial.print(" ");
+			// Serial.print(" ");
 		}
 
-		tempcount++;
-		if(tempcount > (_fontWidth-1))
-		{
-			Serial.println();
-			tempcount = 0;
-		}
+		// tempcount++;
+		// if(tempcount > (_fontWidth-1))
+		// {
+		// 	Serial.println();
+		// 	tempcount = 0;
+		// }
 
 		// Serial.println(char_index, DEC);
 	}
@@ -149,39 +146,52 @@ bool MonochromeProgMemBMPFont::advanceState(uint8_t val, uint16_t screen_width, 
 	// It IS advisable, however, to change the cursor location and provide a yea or nea to the driver for actually printing a character.
 
 	// First things first move the cursor. 
-	uint16_t newX = 0;
-	uint16_t newY = 0;
+	uint16_t newX = cursor_x;
+	uint16_t newY = cursor_y;
 
 	// A special case is the newline character '\n'
 	if(val == '\n')
 	{
-		newX = leftMargin;
-		newY = cursor_y + _fontHeight;
+		if(!_prevWriteCausedNewline)
+		{
+			newX = reset_x;
+			newY += _fontHeight + 1;
 
-		cursor_x = newX;
-		cursor_y = newY;
+			cursor_x = newX;
+			cursor_y = newY;
+
+			_prevWriteCausedNewline = true;
+		}
 
 		return false;						// The driver will not display anything for newline chars. It just starts a new line
 	}
 
+	if(val == '\r')
+	{
+		return false; 						// You can make a 'blacklist' of characters that should not cause any action on the display by returning false when they are requested
+	}
+
 	// If the character that is about to be printed is not a newline character then it will probably take up space and so the cursor should be incremented. 
 	// Its OK to increment cursor data because the frame data exists in another array that the driver will access 
-	newX = cursor_x + _fontWidth;	// Move left-to-right first
-	if((newX > (rightMargin - _fontWidth)))	// But start a new line if you go over the edge
+	newX += _fontWidth + 1;	// Move left-to-right first
+	if((newX > (margin_x - _fontWidth)))	// But start a new line if you go over the edge
 	{
-		newX = leftMargin;
-		newY = cursor_y + _fontHeight;		//
-		if((newY > (bottomMargin - _fontHeight)))
+		newX = reset_x;
+		newY += _fontHeight + 1;		//
+
+		_prevWriteCausedNewline = true;
+
+		if((newY > (margin_y - _fontHeight)))
 		{
 			cursor_x = newX;
 			cursor_y = newY;
 
 			return false;	// This indicates that the driver should not print anything
-		}
-
-		cursor_x = newX;
-		cursor_y = newY;
+		}	
 	}
+
+	cursor_x = newX;
+	cursor_y = newY;
 
 	return true;			// This tells the driver to go ahead and print the data
 	// By the way if the cursor goes off the screen it is up to the user to reset the cursor to zero (after clearing the screen, most likely)
@@ -211,10 +221,10 @@ bool MonochromeProgMemBMPFont::Wrapper_to_call_advanceState(void * pt2Object, ui
 	self->advanceState(val, screen_width, screen_height);
 }
 
-void MonochromeProgMemBMPFont::Wrapper_to_call_resetCursor(void * pt2Object)
+void MonochromeProgMemBMPFont::Wrapper_to_call_setCursorValues(void * pt2Object, uint16_t x, uint16_t y, uint16_t xReset, uint16_t yReset, uint16_t xMargin, uint16_t yMargin)
 {
 	MonochromeProgMemBMPFont * self = (MonochromeProgMemBMPFont *)pt2Object;
-	self->resetCursor();
+	self->setCursorValues(x, y, xReset, yReset, xMargin, yMargin);
 }
 
 
@@ -413,7 +423,7 @@ size_t SSD1357::write(uint8_t val)
 		// blendAlphaData(chardata, alphadata);
 
 		// The only limitation on these fonts is that each character must fit in a rectangular frame.
-		write_ram(chardata, starty, startx, (starty + yheight), (startx + xwidth), yheight * xwidth);	// xwidth * yheight as returned by the frame data function MUST be the same as the number of pixels, which is the same as half the number of bytes in the chardata array.
+		write_ram(chardata, starty, startx, (starty + yheight - 1), (startx + xwidth - 1), yheight * xwidth * 2);	// xwidth * yheight as returned by the frame data function MUST be the same as the number of pixels, which is the same as half the number of bytes in the chardata array.
 	}
 	// Otherwise don't print anything
 	return 1;
@@ -429,11 +439,10 @@ void SSD1357::linkDefaultFont( void )
 					SSD1357DefFont5x7.Wrapper_to_call_getAlpha,
 					SSD1357DefFont5x7.Wrapper_to_call_getFrameData, 
 					SSD1357DefFont5x7.Wrapper_to_call_advanceState,
-					SSD1357DefFont5x7.Wrapper_to_call_resetCursor);
+					SSD1357DefFont5x7.Wrapper_to_call_setCursorValues);
 
 	// Setup margins on the defualt font and zero out the cursor
-	SSD1357DefFont5x7.setMargins(0, 64, 0, 64);
-	SSD1357DefFont5x7.resetCursor();
+	SSD1357DefFont5x7.setCursorValues(0, 0, 0, 0, 127, 127);	// These are the maximum values allowed in the SSD1357
 }
 
 
@@ -955,7 +964,7 @@ void 	SSD1357::setFont(
 					uint8_t * (*AlphaFuncPtr)(void * pt2Object, uint8_t, uint8_t, uint8_t),
 					uint8_t * (*frameFuncPtr)(void * pt2Object, uint8_t, uint8_t, uint8_t), 
 					bool 	(*fontCallbackPtr)(void * pt2Object, uint8_t, uint8_t, uint8_t),
-					void 	(*resetCursorPtr)(void * pt2Object) 
+					void 	(*setCursorValuesPtr)(void * pt2Object) 
 )
 {
 	_object2operateOn = object;
@@ -963,7 +972,7 @@ void 	SSD1357::setFont(
 	_userAlphaFuncPtr = AlphaFuncPtr;
 	_userFrameFuncPtr = frameFuncPtr;
 	_userFontCallbackPtr = fontCallbackPtr;
-	_userFontResetCursorPtr = resetCursorPtr;
+	_userFontSetCursorValuesPtr = setCursorValuesPtr;
 }
 
 void SSD1357::resetFontDefault( void )
@@ -973,10 +982,10 @@ void SSD1357::resetFontDefault( void )
 	_userAlphaFuncPtr = NULL;
 	_userFrameFuncPtr = NULL;
 	_userFontCallbackPtr = NULL;
-	_userFontResetCursorPtr = NULL;
+	_userFontSetCursorValuesPtr = NULL;
 }
 
-void 	SSD1357::resetFontCursor( void )
+void 	SSD1357::setFontCursorValues(uint8_t x, uint8_t y, uint8_t xReset, uint8_t yReset, uint8_t xMargin, uint8_t yMargin)
 {
-	(*_userFontResetCursorPtr)(_object2operateOn);
+	(*_userFontSetCursorValuesPtr)(_object2operateOn, (uint16_t)x, (uint16_t)y, (uint16_t)xReset, (uint16_t)yReset, (uint16_t)xMargin, (uint16_t)yMargin);
 }

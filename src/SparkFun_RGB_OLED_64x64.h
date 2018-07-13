@@ -104,6 +104,7 @@ public:
     // uint8_t *getScreenBuffer(void);
 
     //Font functions
+    void setCursor(uint8_t x, uint8_t y);
     // uint8_t getFontWidth(void);
     // uint8_t getFontHeight(void);
     // uint8_t getTotalFonts(void);
