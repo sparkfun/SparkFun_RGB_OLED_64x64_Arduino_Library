@@ -26,11 +26,6 @@ uint8_t * QRcodeFont::getBMP(uint8_t val, uint16_t screen_width, uint16_t screen
     // The driver assumes that data is written with the smallest index at the upper-left corner and left-to-right top-to-bottom
     pixel_y = (indi / (2 * QRF_FONT_WIDTH));
     pixel_x = (indi - (2 * pixel_y * QRF_FONT_WIDTH))/2;
-
-//    Serial.print("indi: "); Serial.print(indi);
-//    Serial.print(", x: "); Serial.print(pixel_x);
-//    Serial.print(", y: "); Serial.print(pixel_y);
-//    Serial.print(", bit index: "); Serial.println(bit_index);
     
     if(pixel_x < 2)
     {
@@ -39,25 +34,21 @@ uint8_t * QRcodeFont::getBMP(uint8_t val, uint16_t screen_width, uint16_t screen
 
     if(pixel_x == 2)
     {
-      // Serial.println("O");
     }
     else
     {
       if(val & (0x01 << bit_index))
       {
-        // Serial.print("X");
         data[indi] = 0xFF;
         data[indi+1] = 0xFF;
       }
       else
       {
-        // Serial.print("O");
         data[indi] = 0x00;
         data[indi+1] = 0x00;
       }
     }
   }
-  // Serial.println();
   return data;
 }
   uint8_t * QRcodeFont::getAlpha(uint8_t val, uint16_t screen_width, uint16_t screen_height)         // This function is not currently used by the driver, but one day it would allow transparency in the font! Maybe you can implement this functionality in the library!

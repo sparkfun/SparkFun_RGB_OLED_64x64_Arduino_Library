@@ -19,17 +19,17 @@ INDEX:
 
 #ifndef SSD1357_DONT_USE_DEF_FONT
 uint8_t defFontScratch[5*8*2];		// A working area to convert the bit-encoded data to 16bit
-MonochromeProgMemBMPFont SSD1357DefFont5x7(font5x7,defFontScratch, NULL, 6);	// This has to be defined here as opposed to in the h file because of multiple inclusion errors. This means that the user will not be able to operate on it (private to this cpp file) but thats OK because it is the default and not meant to be modified.	
+MicroviewMonochromeProgMemBMPFont SSD1357DefFont5x7(font5x7,defFontScratch, 6);	// This has to be defined here as opposed to in the h file because of multiple inclusion errors. This means that the user will not be able to operate on it (private to this cpp file) but thats OK because it is the default and not meant to be modified.	
 #endif /* SSD1357_DONT_USE_DEF_FONT */
 
 
 
 
-MonochromeProgMemBMPFont::MonochromeProgMemBMPFont(unsigned char * pMap, uint8_t * pPad, uint8_t * pAlphaPad, uint8_t headerSize)
+MicroviewMonochromeProgMemBMPFont::MicroviewMonochromeProgMemBMPFont(unsigned char * pMap, uint8_t * pPad, uint8_t headerSize)
 {
 	fontMapPtr = pMap;
 	charDataPtr = pPad;
-	alphaDataPtr = pAlphaPad;
+	// alphaDataPtr = pAlphaPad;
 	_fontHeaderSize = headerSize;
 
 	_prevWriteCausedNewline = false;
@@ -41,7 +41,7 @@ MonochromeProgMemBMPFont::MonochromeProgMemBMPFont(unsigned char * pMap, uint8_t
 	_fontMapWidth = (pgm_read_byte(fontMapPtr + 4) * 100) + pgm_read_byte(fontMapPtr + 5);	// Right at this moment I'm not sure how this works.. Why high byte * 100? Why not * 256?
 }
 
-// void MonochromeProgMemBMPFont::setMargins(uint8_t left, uint8_t right, uint8_t top, uint8_t bottom)
+// void MicroviewMonochromeProgMemBMPFont::setMargins(uint8_t left, uint8_t right, uint8_t top, uint8_t bottom)
 // {
 // 	leftMargin = left;
 // 	rightMargin = right;
@@ -49,86 +49,58 @@ MonochromeProgMemBMPFont::MonochromeProgMemBMPFont(unsigned char * pMap, uint8_t
 // 	bottomMargin = bottom;
 // }
 
-uint8_t * MonochromeProgMemBMPFont::getBMP(uint8_t val, uint16_t screen_width, uint16_t screen_height)
+uint8_t * MicroviewMonochromeProgMemBMPFont::getBMP(uint8_t val, uint16_t screen_width, uint16_t screen_height)
 {
 	uint8_t ascii_char_diff = (val - _startCharASCII);
 	uint8_t num_bytes_per_column = ((_fontHeight - 1)/8) + 1;
 
 	uint8_t y_index = 0;
 	uint8_t x_index = 0;
-	uint16_t local_byte_index = 0;
-	uint16_t byte_index = 0;
+	uint32_t local_byte_index = 0;
+	uint32_t byte_index = 0;
+	uint32_t chars_per_row = _fontMapWidth / _fontWidth;
+	uint32_t wrap_byte_offset = 0;
 	uint8_t bit_index = 0;
 
 	uint8_t data_byte = 0;
-
-	// uint8_t tempcount = 0;
-	// Serial.print("Font width: "); Serial.println(_fontWidth, DEC);
-	// Serial.print("Font height: "); Serial.println(_fontHeight, DEC);
-	// Serial.print("Val: 0x"); Serial.println(val, HEX);
-	// Serial.print("ASCII start char: "); Serial.println(_startCharASCII, DEC);
-	// Serial.print("Total chars: "); Serial.println(_totalCharsASCII, DEC);
-	// Serial.print("ASCII Char Difference: "); Serial.println(ascii_char_diff, DEC);
 
 	for(uint16_t char_index = 0; char_index < 2*(_fontWidth * _fontHeight); char_index+=2)
 	{
 		// Loop through every pixel in the scratch space by incrementing the char_index (byte index) by 2 (because each pixel takes 2 bytes)
 		// For each pixel determine if it should be filled in or not
-		y_index = (char_index / (2*_fontWidth));
-		x_index = ((char_index - (2*y_index*_fontWidth))/2);
-		local_byte_index = (_fontWidth * (y_index / 8));
-		byte_index = _fontWidth * ascii_char_diff + local_byte_index + _fontHeaderSize + x_index;
+		y_index = (char_index / (2*_fontWidth));				// Tells you where in the character frame you are - y axis
+		x_index = ((char_index - (2*y_index*_fontWidth))/2);	// Tells you where in the character frame you are - x axis
+		local_byte_index = (_fontMapWidth * ((y_index / 8)));	// Adds the map width for each "page" down you go (page is 8 rows high)
+		wrap_byte_offset = (ascii_char_diff / chars_per_row)*num_bytes_per_column*_fontMapWidth; // Every time your character difference exceeds the number of characters wide that the map was then you also need to add more bytes to compensate
+		byte_index = _fontWidth * (ascii_char_diff % chars_per_row)+ wrap_byte_offset + local_byte_index + x_index + _fontHeaderSize;
 		bit_index = y_index - (8 * (y_index / 8));
-
-		// // Serial.println(byte_index, DEC);
-		// // Serial.println(bit_index, DEC);
-		// // byte_index = 0;
-
-		// // if(byte_index > (1542-1))
-		// // {
-		// // 	Serial.println("Byte index size warning");
-		// // 	byte_index = 1541;
-		// // }
-
-		
 
 		// Now conditionally fill the char data with either all ones or all zeros based on value of that bit
 		data_byte = pgm_read_byte(fontMapPtr + byte_index);
+
 		if(data_byte & (0x01 << bit_index))
 		{
 			*(charDataPtr + char_index) = 0xFF;
 			*(charDataPtr + char_index + 1) = 0xFF; 
-			// Serial.print("X");
 		}
 		else
 		{
 			*(charDataPtr + char_index) = 0x00;
 			*(charDataPtr + char_index + 1) = 0x00; 
-			// Serial.print(" ");
 		}
-
-		// tempcount++;
-		// if(tempcount > (_fontWidth-1))
-		// {
-		// 	Serial.println();
-		// 	tempcount = 0;
-		// }
-
-		// Serial.println(char_index, DEC);
 	}
-	Serial.println();
 	return charDataPtr;	// Return a pointer to the data so that the OLED driver knows where to find it
 }
 
-uint8_t * MonochromeProgMemBMPFont::getAlpha(uint8_t val, uint16_t screen_width, uint16_t screen_height)
+uint8_t * MicroviewMonochromeProgMemBMPFont::getAlpha(uint8_t val, uint16_t screen_width, uint16_t screen_height)
 {
-	if(alphaDataPtr == NULL)
-	{
+	// if(alphaDataPtr == NULL)
+	// {
 		return NULL; // This allows the user to decide not to include alpha channel to conserve space
-	}
+	// }
 }
 
-uint8_t * MonochromeProgMemBMPFont::getFrameData(uint8_t val, uint16_t screen_width, uint16_t screen_height)
+uint8_t * MicroviewMonochromeProgMemBMPFont::getFrameData(uint8_t val, uint16_t screen_width, uint16_t screen_height)
 {
 	frameData[0] = cursor_y;
 	frameData[1] = cursor_x;
@@ -139,7 +111,7 @@ uint8_t * MonochromeProgMemBMPFont::getFrameData(uint8_t val, uint16_t screen_wi
 	return frameData;
 }
 
-bool MonochromeProgMemBMPFont::advanceState(uint8_t val, uint16_t screen_width, uint16_t screen_height)
+bool MicroviewMonochromeProgMemBMPFont::advanceState(uint8_t val, uint16_t screen_width, uint16_t screen_height)
 {
 	// Okay! Here is where we can change the location of text :)
 	// this is the callback function that happens after the driver has already received the data pointers but hasn't actually output the data to GDDRAM yet, therefor it's not advisable to change the chardata, framedata, or alpha data
@@ -148,6 +120,13 @@ bool MonochromeProgMemBMPFont::advanceState(uint8_t val, uint16_t screen_width, 
 	// First things first move the cursor. 
 	uint16_t newX = cursor_x;
 	uint16_t newY = cursor_y;
+
+	// Serial.print("Font Height"); Serial.println(_fontHeight);
+	// Serial.print("Font Width"); Serial.println(_fontWidth);
+	// Serial.print("Cursor_x"); Serial.println(cursor_x);
+	// Serial.print("Cursor_y"); Serial.println(cursor_y);
+	// Serial.print("Margin_x"); Serial.println(margin_x);
+	// Serial.print("Margin_y"); Serial.println(margin_y);
 
 	// A special case is the newline character '\n'
 	if(val == '\n')
@@ -165,6 +144,8 @@ bool MonochromeProgMemBMPFont::advanceState(uint8_t val, uint16_t screen_width, 
 
 		return false;						// The driver will not display anything for newline chars. It just starts a new line
 	}
+
+	_prevWriteCausedNewline = false;
 
 	if(val == '\r')
 	{
@@ -197,33 +178,33 @@ bool MonochromeProgMemBMPFont::advanceState(uint8_t val, uint16_t screen_width, 
 	// By the way if the cursor goes off the screen it is up to the user to reset the cursor to zero (after clearing the screen, most likely)
 }
 
-uint8_t * MonochromeProgMemBMPFont::Wrapper_to_call_getBMP(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height)
+uint8_t * MicroviewMonochromeProgMemBMPFont::Wrapper_to_call_getBMP(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height)
 {
-	MonochromeProgMemBMPFont * self = (MonochromeProgMemBMPFont *)pt2Object;
+	MicroviewMonochromeProgMemBMPFont * self = (MicroviewMonochromeProgMemBMPFont *)pt2Object;
 	self->getBMP(val, screen_width, screen_height);
 }
 
-uint8_t * MonochromeProgMemBMPFont::Wrapper_to_call_getAlpha(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height)
+uint8_t * MicroviewMonochromeProgMemBMPFont::Wrapper_to_call_getAlpha(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height)
 {
-	MonochromeProgMemBMPFont * self = (MonochromeProgMemBMPFont *)pt2Object;
+	MicroviewMonochromeProgMemBMPFont * self = (MicroviewMonochromeProgMemBMPFont *)pt2Object;
 	self->getAlpha(val, screen_width, screen_height);
 }
 
-uint8_t * MonochromeProgMemBMPFont::Wrapper_to_call_getFrameData(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height)
+uint8_t * MicroviewMonochromeProgMemBMPFont::Wrapper_to_call_getFrameData(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height)
 {
-	MonochromeProgMemBMPFont * self = (MonochromeProgMemBMPFont *)pt2Object;
+	MicroviewMonochromeProgMemBMPFont * self = (MicroviewMonochromeProgMemBMPFont *)pt2Object;
 	self->getFrameData(val, screen_width, screen_height);
 }
 
-bool MonochromeProgMemBMPFont::Wrapper_to_call_advanceState(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height)
+bool MicroviewMonochromeProgMemBMPFont::Wrapper_to_call_advanceState(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height)
 {
-	MonochromeProgMemBMPFont * self = (MonochromeProgMemBMPFont *)pt2Object;
+	MicroviewMonochromeProgMemBMPFont * self = (MicroviewMonochromeProgMemBMPFont *)pt2Object;
 	self->advanceState(val, screen_width, screen_height);
 }
 
-void MonochromeProgMemBMPFont::Wrapper_to_call_setCursorValues(void * pt2Object, uint16_t x, uint16_t y, uint16_t xReset, uint16_t yReset, uint16_t xMargin, uint16_t yMargin)
+void MicroviewMonochromeProgMemBMPFont::Wrapper_to_call_setCursorValues(void * pt2Object, uint16_t x, uint16_t y, uint16_t xReset, uint16_t yReset, uint16_t xMargin, uint16_t yMargin)
 {
-	MonochromeProgMemBMPFont * self = (MonochromeProgMemBMPFont *)pt2Object;
+	MicroviewMonochromeProgMemBMPFont * self = (MicroviewMonochromeProgMemBMPFont *)pt2Object;
 	self->setCursorValues(x, y, xReset, yReset, xMargin, yMargin);
 }
 
@@ -430,20 +411,7 @@ size_t SSD1357::write(uint8_t val)
 }
 
 
-void SSD1357::linkDefaultFont( void )
-{
-	// Load the default font
-	setFont(
-					&SSD1357DefFont5x7,
-					SSD1357DefFont5x7.Wrapper_to_call_getBMP, 
-					SSD1357DefFont5x7.Wrapper_to_call_getAlpha,
-					SSD1357DefFont5x7.Wrapper_to_call_getFrameData, 
-					SSD1357DefFont5x7.Wrapper_to_call_advanceState,
-					SSD1357DefFont5x7.Wrapper_to_call_setCursorValues);
 
-	// Setup margins on the defualt font and zero out the cursor
-	SSD1357DefFont5x7.setCursorValues(0, 0, 0, 0, 127, 127);	// These are the maximum values allowed in the SSD1357
-}
 
 
 uint8_t * SSD1357::getFontBMP(uint8_t val)
@@ -975,17 +943,34 @@ void 	SSD1357::setFont(
 	_userFontSetCursorValuesPtr = setCursorValuesPtr;
 }
 
-void SSD1357::resetFontDefault( void )
+void SSD1357::linkDefaultFont( void )
 {
-	_object2operateOn = NULL;
-	_userBMPFuncPtr = NULL;
-	_userAlphaFuncPtr = NULL;
-	_userFrameFuncPtr = NULL;
-	_userFontCallbackPtr = NULL;
-	_userFontSetCursorValuesPtr = NULL;
+	// Load the default font
+	setFont(
+					&SSD1357DefFont5x7,
+					SSD1357DefFont5x7.Wrapper_to_call_getBMP, 
+					SSD1357DefFont5x7.Wrapper_to_call_getAlpha,
+					SSD1357DefFont5x7.Wrapper_to_call_getFrameData, 
+					SSD1357DefFont5x7.Wrapper_to_call_advanceState,
+					SSD1357DefFont5x7.Wrapper_to_call_setCursorValues);
+
+	// Setup margins on the defualt font and zero out the cursor
+	SSD1357DefFont5x7.setCursorValues(0, 0, 0, 0, 127, 127);	// These are the maximum values allowed in the SSD1357
 }
 
 void 	SSD1357::setFontCursorValues(uint8_t x, uint8_t y, uint8_t xReset, uint8_t yReset, uint8_t xMargin, uint8_t yMargin)
 {
+	_cursorX = x;			// Store the newest values for ease
+	_cursorY = y;
+	_xReset = xReset;
+	_yReset = yReset;
+	_xMargin = xMargin; 
+	_yMargin = yMargin;
 	(*_userFontSetCursorValuesPtr)(_object2operateOn, (uint16_t)x, (uint16_t)y, (uint16_t)xReset, (uint16_t)yReset, (uint16_t)xMargin, (uint16_t)yMargin);
+}
+
+void SSD1357::setCursor(uint8_t x, uint8_t y)
+{
+	// Just moves the cursor, doesn't change margins or reset values
+	setFontCursorValues(x, y, _xReset, _yReset, _xMargin, _yMargin);
 }

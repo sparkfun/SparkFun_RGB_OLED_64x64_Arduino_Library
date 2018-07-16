@@ -45,17 +45,18 @@ Owen Lyke
 
 
 
-class MonochromeProgMemBMPFont : public CustomFont65k{
+class MicroviewMonochromeProgMemBMPFont : public CustomFont65k{
 private:
 protected:
 	// uint8_t getData(unsigned char * pdata);	// Needed to a
-	uint8_t _fontWidth, _fontHeight, _startCharASCII, _totalCharsASCII, _fontMapWidth, _fontHeaderSize;
+	uint8_t _fontWidth, _fontHeight, _startCharASCII, _totalCharsASCII, _fontHeaderSize;
+	uint32_t _fontMapWidth;
 	
 
 public:
 	unsigned char * fontMapPtr;
 	uint8_t * charDataPtr;
-	uint8_t * alphaDataPtr;
+	// uint8_t * alphaDataPtr;
 
 	// uint8_t leftMargin;
 	// uint8_t rightMargin;
@@ -64,7 +65,7 @@ public:
 
 	uint8_t frameData[4];
 
-	MonochromeProgMemBMPFont(unsigned char * pMap, uint8_t * pPad, uint8_t * pAlphaPad, uint8_t headerSize);
+	MicroviewMonochromeProgMemBMPFont(unsigned char * pMap, uint8_t * pPad, uint8_t headerSize);
 
 	uint8_t * getBMP(uint8_t val, uint16_t screen_width, uint16_t screen_height);
 	uint8_t * getAlpha(uint8_t val, uint16_t screen_width, uint16_t screen_height);
@@ -152,10 +153,8 @@ protected:
 
 	uint8_t _colorMode;			// Knows if the display is in 65k or 256 color mode
 
-	void 	write_bytes(uint8_t * pdata, bool DATAcmd, uint16_t size);
-	void 	write_ram(uint8_t * pdata, uint8_t startrow, uint8_t startcol, uint8_t stoprow, uint8_t stopcol, uint16_t size);		// Raw data write to the GDDRAM 
-
-	void linkDefaultFont( void );
+	uint8_t _cursorX, _cursorY, _xReset, _yReset, _xMargin, _yMargin; // These values are stored to allow the user not to have to send all the cursor values every time...
+	
 
 	uint8_t * getFontBMP(uint8_t val);
 	uint8_t * getFontAlpha(uint8_t val);
@@ -178,6 +177,10 @@ public:
 
 	void setCSlow( void );
 	void setCShigh(void);
+
+	void 	write_bytes(uint8_t * pdata, bool DATAcmd, uint16_t size);
+	void 	write_ram(uint8_t * pdata, uint8_t startrow, uint8_t startcol, uint8_t stoprow, uint8_t stopcol, uint16_t size);		// Raw data write to the GDDRAM 
+
 
 	// From print library
 	size_t write(uint8_t);
@@ -228,8 +231,9 @@ public:
 					bool 	(*fontCallbackPtr)(void * pt2Object, uint8_t, uint8_t, uint8_t),
 					void 	(*resetCursorValuesPtr)(void * pt2Object) 
 					);
-	void 	resetFontDefault( void );
+	void 	linkDefaultFont( void );
 	void 	setFontCursorValues(uint8_t x, uint8_t y, uint8_t xReset, uint8_t yReset, uint8_t xMargin, uint8_t yMargin);	// This guarantees that the user can always interact with the cursor reset function, even if the font is the default font that they can't access in the main file
+	void 	setCursor(uint8_t x, uint8_t y);
 };
 
 

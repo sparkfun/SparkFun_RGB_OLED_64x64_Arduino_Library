@@ -98,7 +98,7 @@ void RGB_OLED_64x64::defaultConfigure( void )
 
   	delay(200);
 
-  	enableWriteRAM();
+  	setFontCursorValues(OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_STOP_COL, OLED_64x64_STOP_ROW);
 }
 
 void RGB_OLED_64x64::fill_working_buffer(uint16_t value, uint8_t num_pixels)
@@ -137,7 +137,10 @@ void RGB_OLED_64x64::display(void)						// Because there is no local data (alway
 	return;
 }
 
-// void setCursor(uint8_t x, uint8_t y); 	// Setting the cursor will be handled by the custom font driver
+// void setCursor(uint8_t x, uint8_t y)
+// {
+
+// }
 
 
 
@@ -703,7 +706,3 @@ void RGB_OLED_64x64::scrollStop(void)
 
 
 
-void RGB_OLED_64x64::setCursor(uint8_t x, uint8_t y)
-{
-	
-}

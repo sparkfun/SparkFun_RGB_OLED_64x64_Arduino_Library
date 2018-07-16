@@ -8,7 +8,7 @@
 // so it is possible to use the font class 'MonochromeProgMemBMPFont'
 
 uint8_t FontScratch8x16[8*16*2];  // This declares a space for the 8x16 font to work in.  
-MonochromeProgMemBMPFont SSD1357Font8x16(font8x16,FontScratch8x16, NULL, 6);  // Construct an object usign the given font definition, the font scratch space, without provisions for an alpha channel, and with 6 bytes in the font header area.
+MicroviewMonochromeProgMemBMPFont SSD1357Font8x16(font8x16,FontScratch8x16, 6);  // Construct an object usign the given font definition, the font scratch space, without provisions for an alpha channel, and with 6 bytes in the font header area.
 
 // The most versatile way to create a custom font is to make a font class derived from the CustomFont65k class.
 // Here we will create a font that encodes ASCII values into tiny little QR code-like pictures.
@@ -23,7 +23,7 @@ MonochromeProgMemBMPFont SSD1357Font8x16(font8x16,FontScratch8x16, NULL, 6);  //
 
 RGB_OLED_64x64  myOLED; // Declare OLED object
 
-QRcodeFont myQRfont;
+QRcodeFont myQRfont;    // Declare an object of the QRcodeFont class (Imagine - you can create a "family" of fonts (the class) and make members with different qualities - for example color or a parametric size...)
 
 void setup() {
   Serial.begin(9600);
@@ -33,30 +33,17 @@ void setup() {
   myOLED.begin(DC_PIN, RST_PIN, CS_PIN, DRIVER_SPI, 2000000); // Choosing 2 MHz because Uno at 16 MHz has trouble (to say the least) executing the full 10 MHz maximum
 
   myOLED.clearDisplay();
+}
 
-  Serial.println("Printing to display with default font");
-  myOLED.setFontCursorValues(OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_STOP_COL, OLED_64x64_STOP_ROW);
-  myOLED.print("Hello world!");
-
-  delay(5000);
-  myOLED.clearDisplay();
+void loop() {
   
-
-  Serial.println("Printing to display with 8x16 font");
-  myOLED.setFont(
-  &SSD1357Font8x16,
-  SSD1357Font8x16.Wrapper_to_call_getBMP,
-  SSD1357Font8x16.Wrapper_to_call_getAlpha,
-  SSD1357Font8x16.Wrapper_to_call_getFrameData, 
-  SSD1357Font8x16.Wrapper_to_call_advanceState,
-  SSD1357Font8x16.Wrapper_to_call_setCursorValues);
-
+  Serial.println("Printing to display with default font");
+  myOLED.linkDefaultFont();
   myOLED.setFontCursorValues(OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_STOP_COL, OLED_64x64_STOP_ROW);
-  myOLED.print("Hello world!");
-
-
-  delay(5000);
+  myOLED.println("Hello world!");
+  delay(1000);
   myOLED.clearDisplay();
+
 
 
   Serial.println("Printing to display with QRcodeFont");
@@ -70,70 +57,23 @@ void setup() {
     myQRfont.Wrapper_to_call_setCursorValues);
 
   myOLED.setFontCursorValues(OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_STOP_COL, OLED_64x64_STOP_ROW);
-  myOLED.print("Hello world!");
+  myOLED.println("Hello world!");
+  delay(1000);
+  myOLED.clearDisplay();
 
+
+
+ Serial.println("Printing to display with 8x16 font");
+  myOLED.setFont(
+  &SSD1357Font8x16,
+  SSD1357Font8x16.Wrapper_to_call_getBMP,
+  SSD1357Font8x16.Wrapper_to_call_getAlpha,
+  SSD1357Font8x16.Wrapper_to_call_getFrameData, 
+  SSD1357Font8x16.Wrapper_to_call_advanceState,
+  SSD1357Font8x16.Wrapper_to_call_setCursorValues);
+
+  myOLED.setFontCursorValues(OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_STOP_COL, OLED_64x64_STOP_ROW);
+  myOLED.println("Hello world!");
+  delay(1000);
+  myOLED.clearDisplay();
 }
-
-void loop() {
-//Serial.println(" But I am, still ALiiive!");
-//delay(500);
-if(Serial.available())
-  {
-    char cmd = Serial.read();
-    if(cmd == 'c')
-    {
-      myOLED.clearDisplay();
-    }
-    else if(cmd == 'f')
-    {
-      myOLED.fillDisplay(0xFFFF);
-    }
-  }
-}
-
-//void print8x16scratch( void ) 
-//{
-//  uint16_t count = 0;
-//  for(uint16_t indi = 0; indi < 8*16*2; indi++)
-//  {
-//    if(FontScratch8x16[indi] < 0x10)
-//    {
-//      Serial.print(0, DEC);
-//    }
-//    Serial.print(FontScratch8x16[indi], HEX);
-//    count++;
-//    if(count > (2*8-1))
-//    {
-//      count = 0;
-//      Serial.println();
-//    } 
-//  }
-//}
-
-//void print5x7scratch( void ) 
-//{
-//  uint16_t count = 0;
-//  for(uint16_t indi = 0; indi < 5*7*2; indi++)
-//  {
-//    Serial.print(FontScratch5x7[indi], HEX);
-//    count++;
-//    if(count > (2*8-1))
-//    {
-//      count = 0;
-//      Serial.println();
-//    } 
-//  }
-//}
-
-
-
-
-
-
-
-
-
-
-
-
-
