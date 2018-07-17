@@ -48,34 +48,24 @@ Owen Lyke
 class MicroviewMonochromeProgMemBMPFont : public CustomFont65k{
 private:
 protected:
-	// uint8_t getData(unsigned char * pdata);	// Needed to a
 	uint8_t _fontWidth, _fontHeight, _startCharASCII, _totalCharsASCII, _fontHeaderSize;
 	uint32_t _fontMapWidth;
 	
 
 public:
-	unsigned char * fontMapPtr;
+	const unsigned char * fontMapPtr;
 	uint8_t * charDataPtr;
-	// uint8_t * alphaDataPtr;
-
-	// uint8_t leftMargin;
-	// uint8_t rightMargin;
-	// uint8_t topMargin;
-	// uint8_t bottomMargin;
-
 	uint8_t frameData[4];
 
-	MicroviewMonochromeProgMemBMPFont(unsigned char * pMap, uint8_t * pPad, uint8_t headerSize);
+	MicroviewMonochromeProgMemBMPFont(const unsigned char * pMap, uint8_t * pPad, uint8_t headerSize);
 
 	uint8_t * getBMP(uint8_t val, uint16_t screen_width, uint16_t screen_height);
 	uint8_t * getAlpha(uint8_t val, uint16_t screen_width, uint16_t screen_height);
 	uint8_t * getFrameData(uint8_t val, uint16_t screen_width, uint16_t screen_height);
 	bool advanceState(uint8_t val, uint16_t screen_width, uint16_t screen_height);
-	// void setCursor( uint16_t x, uint16_t y);
+	// setCursorValues is inherited from the CustomFont65k class, along with the variables that keep track of cursor, reset, and margins
 
-	// void setMargins(uint8_t left, uint8_t right, uint8_t top, uint8_t bottom);
-
-	// Here are some shenanigans: static function wrappers to allow the driver to call the member functions...
+	// Here are some shenanigans: static function wrappers to allow the driver to call the member functions of specific objects
 	static uint8_t * Wrapper_to_call_getBMP(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height);
 	static uint8_t * Wrapper_to_call_getAlpha(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height);
 	static uint8_t * Wrapper_to_call_getFrameData(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height);
@@ -162,10 +152,10 @@ protected:
 	bool fontCallback( uint8_t val);
 
 	void 		* _object2operateOn;
-	uint8_t 	* (*_userBMPFuncPtr)(void *, uint8_t, uint8_t, uint8_t);
-	uint8_t 	* (*_userAlphaFuncPtr)(void *, uint8_t, uint8_t, uint8_t);
-	uint8_t 	* (*_userFrameFuncPtr)(void *, uint8_t, uint8_t, uint8_t);
-	bool 		(*_userFontCallbackPtr)(void *, uint8_t, uint8_t, uint8_t);
+	uint8_t 	* (*_userBMPFuncPtr)(void *, uint8_t, uint16_t, uint16_t);
+	uint8_t 	* (*_userAlphaFuncPtr)(void *, uint8_t, uint16_t, uint16_t);
+	uint8_t 	* (*_userFrameFuncPtr)(void *, uint8_t, uint16_t, uint16_t);
+	bool 		(*_userFontCallbackPtr)(void *, uint8_t, uint16_t, uint16_t);
 	void 		(*_userFontSetCursorValuesPtr)(void *, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t);
 
 public:
@@ -225,11 +215,11 @@ public:
 	// Interact with fonts
 	void 	setFont(
 					void * object,
-					uint8_t * (*BMPFuncPtr)(void * pt2Object, uint8_t, uint8_t, uint8_t), 
-					uint8_t * (*AlphaFuncPtr)(void * pt2Object, uint8_t, uint8_t, uint8_t),
-					uint8_t * (*frameFuncPtr)(void * pt2Object, uint8_t, uint8_t, uint8_t), 
-					bool 	(*fontCallbackPtr)(void * pt2Object, uint8_t, uint8_t, uint8_t),
-					void 	(*resetCursorValuesPtr)(void * pt2Object) 
+					uint8_t * (*BMPFuncPtr)(void * pt2Object, uint8_t, uint16_t, uint16_t), 
+					uint8_t * (*AlphaFuncPtr)(void * pt2Object, uint8_t, uint16_t, uint16_t),
+					uint8_t * (*frameFuncPtr)(void * pt2Object, uint8_t, uint16_t, uint16_t), 
+					bool 	(*fontCallbackPtr)(void * pt2Object, uint8_t, uint16_t, uint16_t),
+					void 	(*resetCursorValuesPtr)(void * pt2Object, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t)
 					);
 	void 	linkDefaultFont( void );
 	void 	setFontCursorValues(uint8_t x, uint8_t y, uint8_t xReset, uint8_t yReset, uint8_t xMargin, uint8_t yMargin);	// This guarantees that the user can always interact with the cursor reset function, even if the font is the default font that they can't access in the main file

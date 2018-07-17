@@ -1,4 +1,34 @@
-#include "SparkFun_RGB_OLED_64x64.h"
+/*
+  Create and use completely custom fonts for the SSD1357 OLED driver and 64x64 RGB OLED screen
+  By: Owen Lyke
+  SparkFun Electronics
+  Date: July 17th 2018
+  License: This code is public domain but you buy me a beer if you use this and we meet someday (Beerware license).
+
+  Example6_CustomFont
+
+  Hardware:
+  This example is for the RGB OLED 64x64 Breakout, but the underlying driver (SSD1357) can be applied to other
+  displays in some cases. If you are using the breakout then all the various voltage regulation and level 
+  shifting is already taken care of. Just connect to a controller like an Arduino as follows:
+
+  Breakout Pin  -->      Uno Pin
+  ------------------------------
+  GND           -->         GND
+  VIN           -->          5V (3.3V works too)
+  RST           -->           2
+  MOSI          -->          11
+  SCLK          -->          13
+  D/C           -->           3
+  CS            -->           4 
+
+  If you want to support development of software like this consider purchasing the breakout from SparkFun!
+  https://www.sparkfun.com/products/14680
+  
+*/
+
+
+#include "SparkFun_RGB_OLED_64x64.h"      // This includes the basics for the 
 #include "font8x16.h"
 #include "QRcodeFont.h"
 

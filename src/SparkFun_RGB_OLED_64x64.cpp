@@ -11,7 +11,7 @@ RGB_OLED_64x64::RGB_OLED_64x64()
 
 }
 
-void RGB_OLED_64x64::begin(uint8_t dcPin, uint8_t rstPin, uint8_t csPin, SPIClass &spiInterface = SPI, uint32_t spiFreq = SSD1357_SPI_MAX_FREQ)
+void RGB_OLED_64x64::begin(uint8_t dcPin, uint8_t rstPin, uint8_t csPin, SPIClass &spiInterface, uint32_t spiFreq)
 {
 	// Associate 
 	_dc = dcPin;
@@ -34,7 +34,7 @@ void RGB_OLED_64x64::begin(uint8_t dcPin, uint8_t rstPin, uint8_t csPin, SPIClas
 	digitalWrite(_dc, HIGH);
 
 	// Transmit just one byte without a target to 'set' the spi hardware
-	uint8_t temp_buff;
+	uint8_t temp_buff[1];
 	_spi->beginTransaction(SPISettings(_spiFreq, SSD1357_SPI_DATA_ORDER, SSD1357_SPI_MODE));
 	_spi->transfer(temp_buff, 1);
 	_spi->endTransaction();
@@ -115,7 +115,7 @@ void RGB_OLED_64x64::fill_working_buffer(uint16_t value, uint8_t num_pixels)
 	}
 }
 
-void RGB_OLED_64x64::clearDisplay(uint8_t mode = 0x00)
+void RGB_OLED_64x64::clearDisplay(uint8_t mode)
 {
 	fillDisplay(0x0000);
 }

@@ -1,4 +1,4 @@
-#include "SparkFun_SSD1357_OLED.h"
+
 /*
 INDEX:
 
@@ -6,12 +6,7 @@ INDEX:
 
 */
 
-
-
-
-
-
-
+#include "SparkFun_SSD1357_OLED.h"
 
 
 
@@ -24,8 +19,7 @@ MicroviewMonochromeProgMemBMPFont SSD1357DefFont5x7(font5x7,defFontScratch, 6);	
 
 
 
-
-MicroviewMonochromeProgMemBMPFont::MicroviewMonochromeProgMemBMPFont(unsigned char * pMap, uint8_t * pPad, uint8_t headerSize)
+MicroviewMonochromeProgMemBMPFont::MicroviewMonochromeProgMemBMPFont(const unsigned char * pMap, uint8_t * pPad, uint8_t headerSize)
 {
 	fontMapPtr = pMap;
 	charDataPtr = pPad;
@@ -40,14 +34,6 @@ MicroviewMonochromeProgMemBMPFont::MicroviewMonochromeProgMemBMPFont(unsigned ch
 	_totalCharsASCII = pgm_read_byte(fontMapPtr + 3);
 	_fontMapWidth = (pgm_read_byte(fontMapPtr + 4) * 100) + pgm_read_byte(fontMapPtr + 5);	// Right at this moment I'm not sure how this works.. Why high byte * 100? Why not * 256?
 }
-
-// void MicroviewMonochromeProgMemBMPFont::setMargins(uint8_t left, uint8_t right, uint8_t top, uint8_t bottom)
-// {
-// 	leftMargin = left;
-// 	rightMargin = right;
-// 	topMargin = top;
-// 	bottomMargin = bottom;
-// }
 
 uint8_t * MicroviewMonochromeProgMemBMPFont::getBMP(uint8_t val, uint16_t screen_width, uint16_t screen_height)
 {
@@ -121,13 +107,6 @@ bool MicroviewMonochromeProgMemBMPFont::advanceState(uint8_t val, uint16_t scree
 	uint16_t newX = cursor_x;
 	uint16_t newY = cursor_y;
 
-	// Serial.print("Font Height"); Serial.println(_fontHeight);
-	// Serial.print("Font Width"); Serial.println(_fontWidth);
-	// Serial.print("Cursor_x"); Serial.println(cursor_x);
-	// Serial.print("Cursor_y"); Serial.println(cursor_y);
-	// Serial.print("Margin_x"); Serial.println(margin_x);
-	// Serial.print("Margin_y"); Serial.println(margin_y);
-
 	// A special case is the newline character '\n'
 	if(val == '\n')
 	{
@@ -181,25 +160,25 @@ bool MicroviewMonochromeProgMemBMPFont::advanceState(uint8_t val, uint16_t scree
 uint8_t * MicroviewMonochromeProgMemBMPFont::Wrapper_to_call_getBMP(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height)
 {
 	MicroviewMonochromeProgMemBMPFont * self = (MicroviewMonochromeProgMemBMPFont *)pt2Object;
-	self->getBMP(val, screen_width, screen_height);
+	return self->getBMP(val, screen_width, screen_height);
 }
 
 uint8_t * MicroviewMonochromeProgMemBMPFont::Wrapper_to_call_getAlpha(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height)
 {
 	MicroviewMonochromeProgMemBMPFont * self = (MicroviewMonochromeProgMemBMPFont *)pt2Object;
-	self->getAlpha(val, screen_width, screen_height);
+	return self->getAlpha(val, screen_width, screen_height);
 }
 
 uint8_t * MicroviewMonochromeProgMemBMPFont::Wrapper_to_call_getFrameData(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height)
 {
 	MicroviewMonochromeProgMemBMPFont * self = (MicroviewMonochromeProgMemBMPFont *)pt2Object;
-	self->getFrameData(val, screen_width, screen_height);
+	return self->getFrameData(val, screen_width, screen_height);
 }
 
 bool MicroviewMonochromeProgMemBMPFont::Wrapper_to_call_advanceState(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height)
 {
 	MicroviewMonochromeProgMemBMPFont * self = (MicroviewMonochromeProgMemBMPFont *)pt2Object;
-	self->advanceState(val, screen_width, screen_height);
+	return self->advanceState(val, screen_width, screen_height);
 }
 
 void MicroviewMonochromeProgMemBMPFont::Wrapper_to_call_setCursorValues(void * pt2Object, uint16_t x, uint16_t y, uint16_t xReset, uint16_t yReset, uint16_t xMargin, uint16_t yMargin)
@@ -245,7 +224,7 @@ SSD1357::SSD1357( void )
 	
 }
 
-void SSD1357::begin(uint8_t dcPin, uint8_t rstPin, uint8_t csPin, SPIClass &spiInterface = SPI, uint32_t spiFreq = SSD1357_SPI_MAX_FREQ)
+void SSD1357::begin(uint8_t dcPin, uint8_t rstPin, uint8_t csPin, SPIClass &spiInterface, uint32_t spiFreq)
 {
 	// Associate 
 	_dc = dcPin;
@@ -302,7 +281,7 @@ void SSD1357::begin(uint8_t dcPin, uint8_t rstPin, uint8_t csPin, SPIClass &spiI
 	*/
 
 	// try starting SPI with a simple byte transmisssion to 'set' the SPI peripherals
-	uint8_t temp_buff;
+	uint8_t temp_buff[1];
 	_spi->beginTransaction(SPISettings(_spiFreq, SSD1357_SPI_DATA_ORDER, SSD1357_SPI_MODE));
 	_spi->transfer(temp_buff, 1);
 	_spi->endTransaction();
@@ -385,7 +364,7 @@ size_t SSD1357::write(uint8_t val)
 	// then we are clear to proceed with writing
 
 	uint8_t * chardata = getFontBMP(val);
-	uint8_t * alphadata = getFontAlpha(val);
+	// uint8_t * alphadata = getFontAlpha(val);
 	uint8_t * framedata = getFontFrameData(val); // The length of data returned by userBMPFunc must correspond to the returned character width and height * 2
 	// btw framedata[] = {starty, startx, yheight, xwidth} - user's responsibility that starty + yheight is less than the actual size of the display... same for x direction
 	
@@ -419,11 +398,8 @@ uint8_t * SSD1357::getFontBMP(uint8_t val)
 	// Calls a user-specified function to get the actual pixel data as a one-dimensional array of uint8_ts
 	if(_userBMPFuncPtr == NULL)
 	{
-		SSD1357DefFont5x7.getBMP(val, _width, _height);
 		// Use the default
-		Serial.println("Null BMP Pointer");// Just hre for debugging, remove serial print later
-		uint8_t chardata[] = {0x00};
-		return chardata;
+		return SSD1357DefFont5x7.getBMP(val, _width, _height);
 	}
 	// Don't use default
 	return (*_userBMPFuncPtr)(_object2operateOn, val, _width, _height);
@@ -447,11 +423,8 @@ uint8_t * SSD1357::getFontFrameData(uint8_t val)
 {
 	if(_userFrameFuncPtr == NULL)
 	{
-		SSD1357DefFont5x7.getFrameData(val, _width, _height);
 		// Use default
-		Serial.println("Null frame pointer");
-		uint8_t framedata[] = {0x00};
-		return framedata;
+		return SSD1357DefFont5x7.getFrameData(val, _width, _height);
 	}
 	// Don't use the default
 	return (*_userFrameFuncPtr)(_object2operateOn, val, _width, _height);
@@ -928,11 +901,11 @@ uint32_t	SSD1357::getSPIFreq( void )
 
 void 	SSD1357::setFont(
 					void * object,
-					uint8_t * (*BMPFuncPtr)(void * pt2Object, uint8_t, uint8_t, uint8_t), 
-					uint8_t * (*AlphaFuncPtr)(void * pt2Object, uint8_t, uint8_t, uint8_t),
-					uint8_t * (*frameFuncPtr)(void * pt2Object, uint8_t, uint8_t, uint8_t), 
-					bool 	(*fontCallbackPtr)(void * pt2Object, uint8_t, uint8_t, uint8_t),
-					void 	(*setCursorValuesPtr)(void * pt2Object) 
+					uint8_t * (*BMPFuncPtr)(void *, uint8_t, uint16_t, uint16_t), 
+					uint8_t * (*AlphaFuncPtr)(void *, uint8_t, uint16_t, uint16_t),
+					uint8_t * (*frameFuncPtr)(void *, uint8_t, uint16_t, uint16_t), 
+					bool 	(*fontCallbackPtr)(void *, uint8_t, uint16_t, uint16_t),
+					void 	(*setCursorValuesPtr)(void *, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t)
 )
 {
 	_object2operateOn = object;
