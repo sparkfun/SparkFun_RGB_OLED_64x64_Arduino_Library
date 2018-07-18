@@ -76,8 +76,8 @@ void setup() {
   myOLED.clearDisplay();
 
   myOLED.setCursor(0, 0);
-  myOLED.println("Waiting to load data");
-  Serial.println("Waiting to load data");
+  myOLED.println("Ready for command");
+  Serial.println("Ready for command");
 
   
 }
@@ -124,9 +124,14 @@ void loop() {
     
     transferData(width, height );
   }
-  else
+  else if(c == 'c')
   {
     myOLED.clearDisplay();
+    myOLED.setCursor(0, 0);
+    myOLED.println("Ready for command");
+  }
+  else
+  {
     printMenu();
   }
 }
@@ -252,6 +257,7 @@ void printMenu( void )
 {
   Serial.println("Image uploader: ");
   Serial.println("  'l' to begin loading");
-  Serial.println("  any other character to clear screen and show this menu");
+  Serial.println("  'c' to clear the screen");
+  Serial.println("  any other character to show this menu");
 }
 
