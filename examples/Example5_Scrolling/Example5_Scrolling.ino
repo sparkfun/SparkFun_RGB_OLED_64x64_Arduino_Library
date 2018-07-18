@@ -43,7 +43,7 @@ void setup() {
   Serial.println("Example5_Scrolling");
 
   SPI.begin();
-  myOLED.begin(DC_PIN, RST_PIN, CS_PIN, SPI, 2000000);
+  myOLED.begin(DC_PIN, RST_PIN, CS_PIN, SPI, 8000000);
   myOLED.clearDisplay();            // Fills the screen with black
 
   /*

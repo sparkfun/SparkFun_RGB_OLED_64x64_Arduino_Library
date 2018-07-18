@@ -72,7 +72,7 @@ void setup() {
   while(!Serial){};
 
   DRIVER_SPI.begin();
-  myOLED.begin(DC_PIN, RST_PIN, CS_PIN, DRIVER_SPI, 2000000); // Choosing 2 MHz because Uno at 16 MHz has trouble (to say the least) executing the full 10 MHz maximum
+  myOLED.begin(DC_PIN, RST_PIN, CS_PIN, DRIVER_SPI, 8000000); // Choosing 8 MHz because Uno at 16 MHz can only do HW SPI at F_CPU/2
 
   myOLED.clearDisplay();
 }

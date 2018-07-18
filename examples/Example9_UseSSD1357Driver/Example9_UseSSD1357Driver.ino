@@ -48,7 +48,7 @@ void setup() {
   Serial.println("Hello command line!");
 
   SPI.begin();
-  driver.begin(DC_PIN, RST_PIN, CS_PIN, DRIVER_SPI, 2000000);
+  driver.begin(DC_PIN, RST_PIN, CS_PIN, DRIVER_SPI, 8000000);   // Use 8 MHz SPI on Arduino Uno instead of the default/maximum (10 MHz)
   
   configure();                                              // These two functions are specific to the display that the driver is used in
   clearDisplay();                                           // So they are defined below using the driver functions

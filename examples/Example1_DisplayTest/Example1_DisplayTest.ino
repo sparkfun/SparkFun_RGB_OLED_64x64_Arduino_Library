@@ -43,7 +43,7 @@ void setup() {
   Serial.println("Example1_DisplayTest");
 
   SPI.begin();
-  myOLED.begin(DC_PIN, RST_PIN, CS_PIN, SPI, 2000000);
+  myOLED.begin(DC_PIN, RST_PIN, CS_PIN, SPI, 8000000);    // Use 8 MHz SPI on Arduino Uno instead of the default/maximum (10 MHz)
 
   
   myOLED.clearDisplay();            // Fills the screen with black
