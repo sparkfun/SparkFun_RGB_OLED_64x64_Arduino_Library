@@ -11,18 +11,22 @@
 
 // Where the X's represent filled-in pixels and the O's represent blank pixels
 
+// Update - I've now added some color so that the background is a rainbow and the 'filled in' pixels are actually black
+// I also tripled the size of each character so that it would be easier to see
+
 
 
 #ifndef QRCODEFONT_H
 #define QRCODEFONT_H
 
 #include <Arduino.h>
-#include "util/CustomFont65k.h"
+#include "CustomFont65k.h"
+#include "fast_hsv2rgb.h"
 
 
-
-#define QRF_FONT_WIDTH 3
-#define QRF_FONT_HEIGHT 4
+#define QRF_SCALE_FACTOR 3
+#define QRF_FONT_WIDTH 3*QRF_SCALE_FACTOR
+#define QRF_FONT_HEIGHT 4*QRF_SCALE_FACTOR
 #define QRF_NUM_BYTES_PER_CHAR 2
 
 // This uses c++ classes, so if you need a refresher check out this website: http://www.cplusplus.com/doc/tutorial/classes/
@@ -34,6 +38,8 @@ public:
 
   uint8_t data[QRF_FONT_WIDTH*QRF_FONT_HEIGHT*2];                           // Each character will be 3 pixels wide and 4 pixels tall, and 2 bytes are required for each pixel
   uint8_t frameData[4];
+
+  uint16_t hue;
   
   QRcodeFont();                               // This is a constructor for the class - it is a special kind of function used to create an object of the class
 
@@ -55,6 +61,11 @@ public:
   static uint8_t * Wrapper_to_call_getFrameData(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height);
   static bool Wrapper_to_call_advanceState(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height);
   static void Wrapper_to_call_setCursorValues(void * pt2Object, uint16_t x, uint16_t y, uint16_t xReset, uint16_t yReset, uint16_t xMargin, uint16_t yMargin);
+
+  // Here are two functions added beyond what is required, so that the font can be colorful!
+  uint16_t get65kValueRGB(uint8_t R, uint8_t G, uint8_t B);
+  uint16_t get65kValueHSV(uint16_t hue, uint8_t sat, uint8_t val);
+
 };
 
 

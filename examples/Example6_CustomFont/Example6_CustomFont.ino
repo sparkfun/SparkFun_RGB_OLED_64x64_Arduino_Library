@@ -10,7 +10,7 @@
   Hardware:
   This example is for the RGB OLED 64x64 Breakout, but the underlying driver (SSD1357) can be applied to other
   displays in some cases. If you are using the breakout then all the various voltage regulation and level 
-  shifting is already taken care of. Just connect to a controller like an Arduino as follows:
+  shifting is already taken care of. Just connect to a controller such as an Arduino Uno as follows:
 
   Breakout Pin  -->      Uno Pin
   ------------------------------
@@ -27,33 +27,45 @@
   
 */
 
+#define SSD1357_DONT_USE_DEF_FONT         // Defining this variable removes the default font from the code
 
-#include "SparkFun_RGB_OLED_64x64.h"      // This includes the basics for the 
-#include "font8x16.h"
-#include "QRcodeFont.h"
+#include "SparkFun_RGB_OLED_64x64.h"      // Click here to get the library: http://librarymanager/All#SparkFun_RGB_OLED_64x64
+#include "font8x16.h"                     // This file simply holds a bitmap definition of the 8x16 font in program memory
+#include "QRcodeFont.h"                   // This file contains a class that was written to make a completely custom font
 
-// The font8x16 header contains a monochrome bitmap font that is 8 pixels wide by 16 pixels tall. 
-// The data is stored in program memory in the array called font8x16.
-// This setup is similar to the way that the defualt 5x7 font is stored,
-// so it is possible to use the font class 'MonochromeProgMemBMPFont'
+/* 
+ *  The first custom font to implement is another bitmap font, but a little larger. Because the 8x16 and 5x7 (default) 
+ *  font map definitions are borrowed from the MicroView library they work very similarly to one another. This means 
+ *  that the font class built-in to the SSD1357 driver can be used for the 8x16 font as well. 
+ */
+uint8_t FontScratch8x16[8*16*2];                                                  // This declares a space for the 8x16 font to work in.  
+MicroviewMonochromeProgMemBMPFont SSD1357Font8x16(font8x16, FontScratch8x16, 6);   // Construct an object using the given font definition, the font scratch space, and with 6 bytes in the font header area.
 
-uint8_t FontScratch8x16[8*16*2];  // This declares a space for the 8x16 font to work in.  
-MicroviewMonochromeProgMemBMPFont SSD1357Font8x16(font8x16,FontScratch8x16, 6);  // Construct an object usign the given font definition, the font scratch space, without provisions for an alpha channel, and with 6 bytes in the font header area.
 
-// The most versatile way to create a custom font is to make a font class derived from the CustomFont65k class.
-// Here we will create a font that encodes ASCII values into tiny little QR code-like pictures.
-// The definition of the font is now moved to the "QRcodeFont.h" and "QRcodeFont.cpp" files to keep this file easier to read.
-// You can create a new font in the main file, or write your own include files
+/*
+ * The second custom font that will be implemented shows that you don't need a bitmap font - instead you can generate a
+ * font procedurally. This can help save on memory, and also create very cool things! To make a completely custom font 
+ * you derive a class from the 'CustomFont65k' class and create the necessary functions:
+ *      getBMP        - You return a pointer to a W*H*2 long array of bytes that represents the charactr to draw
+ *      getFrameData  - You specify the corner coordiantes as well as Width and Height of the given character (yes, different characters can be different sizes!)
+ *      advanceState  - You choose what characters to actually display, as wel as how to move the cursor
+ *      getAlpha      - Not implemented yet in the SSD1357 driver, but could allow for transparency effects (Just return NULL)
+ *      
+ * Creating a class for custom fonts is also cool because it allows you to instantiate objects ('fonts') with unique properties
+ * parametrically. For example you could make a class called 'coloredFonts' and make an object called 'redFont' that always
+ * prints in red. The possibilities are endless!
+ *      
+ * An example is given in the "QRcodeFont.h" header file.
+ */
 
-#define DRIVER_SPI SPI
+#define DRIVER_SPI SPI 
 
 #define CS_PIN 4
 #define DC_PIN 3
 #define RST_PIN 2
 
 RGB_OLED_64x64  myOLED; // Declare OLED object
-
-QRcodeFont myQRfont;    // Declare an object of the QRcodeFont class (Imagine - you can create a "family" of fonts (the class) and make members with different qualities - for example color or a parametric size...)
+QRcodeFont myQRfont;    // Declare an object of the QRcodeFont class - no special parameters here, each instantiation is identical
 
 void setup() {
   Serial.begin(9600);
@@ -67,43 +79,59 @@ void setup() {
 
 void loop() {
   
-  Serial.println("Printing to display with default font");
-  myOLED.linkDefaultFont();
-  myOLED.setFontCursorValues(OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_STOP_COL, OLED_64x64_STOP_ROW);
-  myOLED.println("Hello world!");
+  printWithDefault("Hello world!");
   delay(1000);
   myOLED.clearDisplay();
 
+  printWith8x16("Hello world!");
+  delay(1000);
+  myOLED.clearDisplay();
+
+  printWithQRcode("Hello world!");
+  delay(1000);
+  myOLED.clearDisplay();
+}
 
 
+// This function prints a string on the display using the SSD1357 defualt font (5x7 bitmap)
+void printWithDefault( const char * buff )
+{
+  Serial.println("Printing to display with default font");
+  myOLED.linkDefaultFont();
+  myOLED.setFontCursorValues(OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_STOP_COL, OLED_64x64_STOP_ROW);
+  myOLED.println(buff);
+}
+
+// This function prints a string on the display using the 8x16 bitmap font
+void printWith8x16( const char * buff )
+{
+  Serial.println("Printing to display with 8x16 font");
+  myOLED.setFont(
+    &SSD1357Font8x16,
+    SSD1357Font8x16.Wrapper_to_call_getBMP,
+    SSD1357Font8x16.Wrapper_to_call_getAlpha,
+    SSD1357Font8x16.Wrapper_to_call_getFrameData, 
+    SSD1357Font8x16.Wrapper_to_call_advanceState,
+    SSD1357Font8x16.Wrapper_to_call_setCursorValues);
+  myOLED.setFontCursorValues(OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_STOP_COL, OLED_64x64_STOP_ROW);
+  myOLED.println(buff);
+}
+
+// This function prints a string on the display using the procedural 'QRcode' font
+void printWithQRcode( const char * buff )
+{
   Serial.println("Printing to display with QRcodeFont");
   Serial.println();
   myOLED.setFont(
-  &myQRfont,
+    &myQRfont,
     myQRfont.Wrapper_to_call_getBMP,
     myQRfont.Wrapper_to_call_getAlpha,
     myQRfont.Wrapper_to_call_getFrameData, 
     myQRfont.Wrapper_to_call_advanceState,
     myQRfont.Wrapper_to_call_setCursorValues);
-
   myOLED.setFontCursorValues(OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_STOP_COL, OLED_64x64_STOP_ROW);
-  myOLED.println("Hello world!");
-  delay(1000);
-  myOLED.clearDisplay();
-
-
-
- Serial.println("Printing to display with 8x16 font");
-  myOLED.setFont(
-  &SSD1357Font8x16,
-  SSD1357Font8x16.Wrapper_to_call_getBMP,
-  SSD1357Font8x16.Wrapper_to_call_getAlpha,
-  SSD1357Font8x16.Wrapper_to_call_getFrameData, 
-  SSD1357Font8x16.Wrapper_to_call_advanceState,
-  SSD1357Font8x16.Wrapper_to_call_setCursorValues);
-
-  myOLED.setFontCursorValues(OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_START_COL, OLED_64x64_START_ROW, OLED_64x64_STOP_COL, OLED_64x64_STOP_ROW);
-  myOLED.println("Hello world!");
-  delay(1000);
-  myOLED.clearDisplay();
+  myOLED.println(buff);
 }
+
+
+

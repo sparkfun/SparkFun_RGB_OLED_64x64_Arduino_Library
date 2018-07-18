@@ -3,7 +3,7 @@
 
 QRcodeFont::QRcodeFont()
 {
-  
+  hue = HSV_HUE_MIN;
 }
 
 
@@ -18,35 +18,50 @@ QRcodeFont::QRcodeFont()
 uint8_t * QRcodeFont::getBMP(uint8_t val, uint16_t screen_width, uint16_t screen_height)           // This function returns a pointer to the data that the driver should write to the display to show the character
 {
   // I will fill out the scratch space called 'data' 2 bytes (1 pixel) at a time
-  uint8_t pixel_y, pixel_x;
+  uint8_t pixel_y, pixel_x, subpixel_x, subpixel_y;
   uint8_t bit_index = 0;
+  uint8_t count = 0;
   
   for(uint16_t indi = 0; indi < 2*QRF_FONT_WIDTH*QRF_FONT_HEIGHT; indi+=2)
   {
     // The driver assumes that data is written with the smallest index at the upper-left corner and left-to-right top-to-bottom
-    pixel_y = (indi / (2 * QRF_FONT_WIDTH));
-    pixel_x = (indi - (2 * pixel_y * QRF_FONT_WIDTH))/2;
-    
-    if(pixel_x < 2)
-    {
-      bit_index++;
-    }
+    // pixel_y = (indi / (2 * QRF_FONT_WIDTH));
+    // pixel_x = (indi - (2 * pixel_y * QRF_FONT_WIDTH))/2;
 
-    if(pixel_x == 2)
-    {
-    }
-    else
+    subpixel_y = (indi / (2 * QRF_FONT_WIDTH));
+    subpixel_x = (indi - (2 * subpixel_y * QRF_FONT_WIDTH))/2;
+
+    // Serial.print("sub(x,y): ("); Serial.print(subpixel_x); Serial.print(", "); Serial.print(subpixel_y); Serial.println(")");
+
+
+    pixel_y = subpixel_y / QRF_SCALE_FACTOR;
+    pixel_x = subpixel_x / QRF_SCALE_FACTOR;
+
+    // Serial.print("pix(x,y): ("); Serial.print(pixel_x); Serial.print(", "); Serial.print(pixel_y); Serial.println(")");
+    
+    bit_index = 2*pixel_y + pixel_x;  // This only needs to work for pixel_x = 0 or 1
+
+    if(pixel_x != 2)
     {
       if(val & (0x01 << bit_index))
       {
-        data[indi] = 0xFF;
-        data[indi+1] = 0xFF;
-      }
-      else
-      {
+        // data[indi] = 0xFF;
+        // data[indi+1] = 0xFF;
         data[indi] = 0x00;
         data[indi+1] = 0x00;
       }
+      else
+      {
+        uint16_t backgroundColor = get65kValueHSV(hue, 255, 255);
+        data[indi] = ((backgroundColor & 0xFF00) >> 8);
+        data[indi+1] = backgroundColor & 0x00FF;
+      }
+    }
+    else
+    {
+        uint16_t backgroundColor = get65kValueHSV(hue, 255, 255);
+        data[indi] = ((backgroundColor & 0xFF00) >> 8);
+        data[indi+1] = backgroundColor & 0x00FF;
     }
   }
   return data;
@@ -70,6 +85,13 @@ uint8_t * QRcodeFont::getBMP(uint8_t val, uint16_t screen_width, uint16_t screen
 // First things first move the cursor. 
   uint16_t newX = cursor_x;
   uint16_t newY = cursor_y;
+
+  // Update background hue!
+  hue += 128;
+  if(hue > HSV_HUE_MAX)
+  {
+    hue = HSV_HUE_MIN;
+  }
 
   // A special case is the newline character '\n'
   if(val == '\n')
@@ -161,4 +183,19 @@ void QRcodeFont::Wrapper_to_call_setCursorValues(void * pt2Object, uint16_t x, u
 {
   QRcodeFont * self = (QRcodeFont *)pt2Object;
   self->setCursorValues(x, y, xReset, yReset, xMargin, yMargin);
+}
+
+uint16_t QRcodeFont::get65kValueRGB(uint8_t R, uint8_t G, uint8_t B)
+{
+  uint16_t rScaled = (R*31)/255;
+  uint16_t gScaled = (G*63)/255;
+  uint16_t bScaled = (B*31)/255;
+  return (((rScaled & 0x001F) << 11) | ((gScaled & 0x003F) << 5) | ((bScaled & 0x001F) << 0));
+}
+uint16_t QRcodeFont::get65kValueHSV(uint16_t hue, uint8_t sat, uint8_t val)
+{
+  //For an awesome analysis of HSV to RGB conversion for small CPUs check this out:  http://www.vagrearg.org/content/hsvrgb
+  uint8_t r, g, b;
+  fast_hsv2rgb_32bit(hue, sat, val, &r, &g, &b);
+  return get65kValueRGB(r, g, b);
 }

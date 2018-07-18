@@ -8,7 +8,7 @@ A libary to use the SSD1357 driver in conjuction with a particular OLED display 
 #define	SF_RGB_OLED_64X64_H
 
 // #include "screen65k.h"				// This is a method of storing arbitrary RGB images in 16-bit depth where two colors are 5 bits and the last is 6 bits
-#include "util/SparkFun_SSD1357_OLED.h"	// This is a driver that takes screens and displays them on a physical device
+#include "SparkFun_SSD1357_OLED.h"	// This is a driver that takes screens and displays them on a physical device
 
 #define OLED_64x64_WIDTH 	64
 #define OLED_64x64_HEIGHT 	64
@@ -32,23 +32,6 @@ protected:
 
 	uint8_t _colorMode;
 
-	uint16_t _fillColor;
-
-	// utility functions
-	void fill_working_buffer(uint16_t value, uint8_t num_pixels);
-
-	// Protected drawing functions
-	void plotLineLow(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t value, uint8_t width);
-	void plotLineHigh(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t value, uint8_t width);
-
-
-	void circle_Bresenham(uint8_t x, uint8_t y, uint8_t radius, uint16_t value, boolean fill);
-	void circle_midpoint(uint8_t x, uint8_t y, uint8_t radius, uint16_t value, boolean fill);
-	void circle_eight(uint8_t xc, uint8_t yc, int16_t dx, int16_t dy, uint16_t value, boolean fill);
-
-	void fast_filled_rectangle(int8_t x0, int8_t y0, int8_t x1, int8_t y1, int16_t value);
-
-
 
 public:
 
@@ -68,27 +51,7 @@ public:
     // void flipVertical(boolean flip);
     void flipHorizontal(boolean flip);
 
-    void setPixel(uint8_t x, uint8_t y);
-    void setPixel(uint8_t x, uint8_t y, uint16_t value);
-
-    void line(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1);
-    void line(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t value);
-    void lineWide(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint8_t width);
-    void lineWide(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t value, uint8_t width);
-    void lineH(uint8_t x, uint8_t y, uint8_t width);
-    void lineH(uint8_t x, uint8_t y, uint8_t width, uint16_t value);
-    void lineV(uint8_t x, uint8_t y, uint8_t height);
-    void lineV(uint8_t x, uint8_t y, uint8_t height, uint16_t value);
-
-    void rect(uint8_t x, uint8_t y, uint8_t width, uint8_t height);
-    void rect(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint16_t value);
-    void rectFill(uint8_t x, uint8_t y, uint8_t width, uint8_t height);
-    void rectFill(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint16_t value);
-
-    void circle(uint8_t x, uint8_t y, uint8_t radius);
-    void circle(uint8_t x, uint8_t y, uint8_t radius, uint16_t value);
-    void circleFill(uint8_t x, uint8_t y, uint8_t radius);
-    void circleFill(uint8_t x, uint8_t y, uint8_t radius, uint16_t value);
+    
 
     // void drawChar(uint8_t x, uint8_t y, uint8_t c);
     // void drawChar(uint8_t x, uint8_t y, uint8_t c, uint8_t color, uint8_t mode);
@@ -111,6 +74,7 @@ public:
     // boolean setFontType(uint8_t type);
     // uint8_t getFontStartChar(void);
     // uint8_t getFontTotalChar(void);
+    void setCursor(uint8_t x, uint8_t y);
 
     // LCD Rotate Scroll functions
     void scrollRight(uint8_t start, uint8_t stop, uint8_t speed);
@@ -123,7 +87,28 @@ public:
     void scrollStop(void);
 
 
+    // Drawing functions - based on 64x64 RGB OLED coordinates for ease
+    void setPixel(uint8_t x, uint8_t y);
+    void setPixel(uint8_t x, uint8_t y, uint16_t value);
 
+    void line(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1);
+    void line(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t value);
+    void lineWide(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint8_t width);
+    void lineWide(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t value, uint8_t width);
+    void lineH(uint8_t x, uint8_t y, uint8_t width);
+    void lineH(uint8_t x, uint8_t y, uint8_t width, uint16_t value);
+    void lineV(uint8_t x, uint8_t y, uint8_t height);
+    void lineV(uint8_t x, uint8_t y, uint8_t height, uint16_t value);
+
+    void rect(uint8_t x, uint8_t y, uint8_t width, uint8_t height);
+    void rect(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint16_t value);
+    void rectFill(uint8_t x, uint8_t y, uint8_t width, uint8_t height);
+    void rectFill(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint16_t value);
+
+    void circle(uint8_t x, uint8_t y, uint8_t radius);
+    void circle(uint8_t x, uint8_t y, uint8_t radius, uint16_t value);
+    void circleFill(uint8_t x, uint8_t y, uint8_t radius);
+    void circleFill(uint8_t x, uint8_t y, uint8_t radius, uint16_t value);
 
 
 };

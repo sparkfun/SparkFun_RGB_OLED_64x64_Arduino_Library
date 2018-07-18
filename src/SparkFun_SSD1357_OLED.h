@@ -17,6 +17,9 @@ Owen Lyke
 #include <Arduino.h>
 #include <SPI.h>
 #include "CustomFont65k.h"
+#include "fast_hsv2rgb.h"
+
+#define HSV_USE_ASSEMBLY
 
 #ifndef SSD1357_DONT_USE_DEF_FONT
 	#include "util/font5x7.h"
@@ -28,6 +31,15 @@ Owen Lyke
 
 #define SSD1357_MAX_WIDTH 128
 #define SSD1357_MAX_HEIGHT 128
+
+#define SSD1357_START_ROW 0
+#define SSD1357_START_COL 0
+
+#define SSD1357_STOP_ROW 127
+#define SSD1357_STOP_COL 127
+
+#define SSD1357_WORKING_BUFF_NUM_PIXELS	128
+#define SSD1357_BYTES_PER_PIXEL 2
 
 #define SSD1357_COLOR_MODE_256 0x00
 #define SSD1357_COLOR_MODE_65k 0x01
@@ -142,6 +154,7 @@ protected:
 	uint8_t _width, _height;	// Physical dimensions of the display that the driver is connected to. Limited to 128x128
 
 	uint8_t _colorMode;			// Knows if the display is in 65k or 256 color mode
+	uint16_t _fillColor;		// The default color to use 
 
 	uint8_t _cursorX, _cursorY, _xReset, _yReset, _xMargin, _yMargin; // These values are stored to allow the user not to have to send all the cursor values every time...
 	
@@ -157,6 +170,18 @@ protected:
 	uint8_t 	* (*_userFrameFuncPtr)(void *, uint8_t, uint16_t, uint16_t);
 	bool 		(*_userFontCallbackPtr)(void *, uint8_t, uint16_t, uint16_t);
 	void 		(*_userFontSetCursorValuesPtr)(void *, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t);
+
+	// Protected drawing functions
+	void fill_working_buffer(uint16_t value, uint8_t num_pixels);
+
+	void plotLineLow(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t value, uint8_t width);
+	void plotLineHigh(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t value, uint8_t width);
+
+	void circle_Bresenham(uint8_t x, uint8_t y, uint8_t radius, uint16_t value, boolean fill);
+	void circle_midpoint(uint8_t x, uint8_t y, uint8_t radius, uint16_t value, boolean fill);
+	void circle_eight(uint8_t xc, uint8_t yc, int16_t dx, int16_t dy, uint16_t value, boolean fill);
+
+	void fast_filled_rectangle(int8_t x0, int8_t y0, int8_t x1, int8_t y1, int16_t value);
 
 public:
 
@@ -223,8 +248,36 @@ public:
 					);
 	void 	linkDefaultFont( void );
 	void 	setFontCursorValues(uint8_t x, uint8_t y, uint8_t xReset, uint8_t yReset, uint8_t xMargin, uint8_t yMargin);	// This guarantees that the user can always interact with the cursor reset function, even if the font is the default font that they can't access in the main file
-	void 	setCursor(uint8_t x, uint8_t y);
+	void 	setCursorRAM(uint8_t x, uint8_t y);
+
+
+	// Drawing functions - based on RAM coordinates
+	void setPixelRAM(uint8_t x, uint8_t y);
+	void setPixelRAM(uint8_t x, uint8_t y, uint16_t value);
+
+	void lineRAM(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1);
+	void lineRAM(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t value);
+	void lineWideRAM(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint8_t width);
+	void lineWideRAM(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t value, uint8_t width);
+	void lineHRAM(uint8_t x, uint8_t y, uint8_t width);
+	void lineHRAM(uint8_t x, uint8_t y, uint8_t width, uint16_t value);
+	void lineVRAM(uint8_t x, uint8_t y, uint8_t height);
+	void lineVRAM(uint8_t x, uint8_t y, uint8_t height, uint16_t value);
+
+	void rectRAM(uint8_t x, uint8_t y, uint8_t width, uint8_t height);
+	void rectRAM(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint16_t value);
+	void rectFillRAM(uint8_t x, uint8_t y, uint8_t width, uint8_t height);
+	void rectFillRAM(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint16_t value);
+
+	void circleRAM(uint8_t x, uint8_t y, uint8_t radius);
+	void circleRAM(uint8_t x, uint8_t y, uint8_t radius, uint16_t value);
+	void circleFillRAM(uint8_t x, uint8_t y, uint8_t radius);
+	void circleFillRAM(uint8_t x, uint8_t y, uint8_t radius, uint16_t value);
 };
+
+//Color utility functions
+uint16_t get65kValueRGB(uint8_t R, uint8_t G, uint8_t B);
+uint16_t get65kValueHSV(uint16_t hue, uint8_t sat, uint8_t val);
 
 
 
@@ -235,3 +288,7 @@ public:
 
 
 #endif /* SSD1357_OLED_H */
+
+
+
+

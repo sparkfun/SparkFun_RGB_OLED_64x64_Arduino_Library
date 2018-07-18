@@ -10,11 +10,14 @@ INDEX:
 
 
 
-
+// Choosing an intermediate option between a full screen buffer (128*128*2)
+// and having no working memory at all (which would require lots of
+// separate SPI transactions to fill a screen)
+uint8_t working_buff[SSD1357_WORKING_BUFF_NUM_PIXELS*SSD1357_BYTES_PER_PIXEL];
 
 #ifndef SSD1357_DONT_USE_DEF_FONT
-uint8_t defFontScratch[5*8*2];		// A working area to convert the bit-encoded data to 16bit
-MicroviewMonochromeProgMemBMPFont SSD1357DefFont5x7(font5x7,defFontScratch, 6);	// This has to be defined here as opposed to in the h file because of multiple inclusion errors. This means that the user will not be able to operate on it (private to this cpp file) but thats OK because it is the default and not meant to be modified.	
+	uint8_t defFontScratch[5*8*2];		// A working area to convert the bit-encoded data to 16bit
+	MicroviewMonochromeProgMemBMPFont SSD1357DefFont5x7(font5x7,defFontScratch, 6);	// This has to be defined here as opposed to in the h file because of multiple inclusion errors. This means that the user will not be able to operate on it (private to this cpp file) but thats OK because it is the default and not meant to be modified.	
 #endif /* SSD1357_DONT_USE_DEF_FONT */
 
 
@@ -234,6 +237,8 @@ void SSD1357::begin(uint8_t dcPin, uint8_t rstPin, uint8_t csPin, SPIClass &spiI
 
 	_spiFreq = spiFreq;
 
+	_fillColor = 0xFFFF;
+
 	linkDefaultFont();
 
 	// Set pinmodes
@@ -372,6 +377,11 @@ size_t SSD1357::write(uint8_t val)
 	
 	// // Write the font data to the ram now
 
+	if((chardata == NULL) || (framedata == NULL))
+	{
+		return;	// Protect memory
+	}
+
 	if(print_char)
 	{
 		uint8_t starty = *(framedata + 0);
@@ -399,7 +409,11 @@ uint8_t * SSD1357::getFontBMP(uint8_t val)
 	if(_userBMPFuncPtr == NULL)
 	{
 		// Use the default
-		return SSD1357DefFont5x7.getBMP(val, _width, _height);
+		#ifndef SSD1357_DONT_USE_DEF_FONT
+			return SSD1357DefFont5x7.getBMP(val, _width, _height);
+		#else
+			return NULL;
+		#endif	/* SSD1357_DONT_USE_DEF_FONT */
 	}
 	// Don't use default
 	return (*_userBMPFuncPtr)(_object2operateOn, val, _width, _height);
@@ -414,7 +428,11 @@ uint8_t * SSD1357::getFontAlpha(uint8_t val)
 
 	if(_userAlphaFuncPtr == NULL)
 	{
-		return NULL;	// This just means that the default font does not support transparency
+		#ifndef SSD1357_DONT_USE_DEF_FONT
+			return NULL;	// This just means that the default font does not support transparency
+		#else
+			return NULL;
+		#endif	/* SSD1357_DONT_USE_DEF_FONT */
 	}
 	return (*_userAlphaFuncPtr)(_object2operateOn, val, _width, _height);
 }
@@ -424,7 +442,11 @@ uint8_t * SSD1357::getFontFrameData(uint8_t val)
 	if(_userFrameFuncPtr == NULL)
 	{
 		// Use default
-		return SSD1357DefFont5x7.getFrameData(val, _width, _height);
+		#ifndef SSD1357_DONT_USE_DEF_FONT
+			return SSD1357DefFont5x7.getFrameData(val, _width, _height);
+		#else
+			return NULL;
+		#endif	/* SSD1357_DONT_USE_DEF_FONT */
 	}
 	// Don't use the default
 	return (*_userFrameFuncPtr)(_object2operateOn, val, _width, _height);
@@ -436,12 +458,15 @@ bool SSD1357::fontCallback( uint8_t val )
 	// If the return is a 'false' then the driver will do nothing
 	if(_userFontCallbackPtr == NULL)
 	{
-		return SSD1357DefFont5x7.advanceState(val, _width, _height);
+		#ifndef SSD1357_DONT_USE_DEF_FONT
+			return SSD1357DefFont5x7.advanceState(val, _width, _height);
+		#else
+			return NULL;
+		#endif	/* SSD1357_DONT_USE_DEF_FONT */
 	}
 	// Don't use the default
 	return (*_userFontCallbackPtr)(_object2operateOn, val, _width, _height);
 }
-
 
 
 
@@ -942,8 +967,549 @@ void 	SSD1357::setFontCursorValues(uint8_t x, uint8_t y, uint8_t xReset, uint8_t
 	(*_userFontSetCursorValuesPtr)(_object2operateOn, (uint16_t)x, (uint16_t)y, (uint16_t)xReset, (uint16_t)yReset, (uint16_t)xMargin, (uint16_t)yMargin);
 }
 
-void SSD1357::setCursor(uint8_t x, uint8_t y)
+void SSD1357::setCursorRAM(uint8_t x, uint8_t y)
 {
 	// Just moves the cursor, doesn't change margins or reset values
 	setFontCursorValues(x, y, _xReset, _yReset, _xMargin, _yMargin);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Drawing functions!
+
+uint16_t get65kValueRGB(uint8_t R, uint8_t G, uint8_t B)
+{
+	uint16_t rScaled = (R*31)/255;
+	uint16_t gScaled = (G*63)/255;
+	uint16_t bScaled = (B*31)/255;
+	return (((rScaled & 0x001F) << 11) | ((gScaled & 0x003F) << 5) | ((bScaled & 0x001F) << 0));
+}
+uint16_t get65kValueHSV(uint16_t hue, uint8_t sat, uint8_t val)
+{
+	//For an awesome analysis of HSV to RGB conversion for small CPUs check this out:  http://www.vagrearg.org/content/hsvrgb
+	uint8_t r, g, b;
+	fast_hsv2rgb_32bit(hue, sat, val, &r, &g, &b);
+	return get65kValueRGB(r, g, b);
+}
+
+void SSD1357::setPixelRAM(uint8_t x, uint8_t y)
+{
+	setPixelRAM(x, y, _fillColor);
+}
+
+void SSD1357::setPixelRAM(uint8_t x, uint8_t y, uint16_t value)
+{
+	if((x >= SSD1357_MAX_WIDTH) || (y >= SSD1357_MAX_HEIGHT))	// Make sure we are within the RAM limits
+	{
+		return;
+	}
+
+	working_buff[0] = ((value & 0xFF00) >> 8);
+	working_buff[1] = ((value & 0x00FF) >> 0);
+	write_ram(working_buff, y, x, SSD1357_STOP_ROW, SSD1357_STOP_COL, 2);
+}
+
+
+
+
+void SSD1357::lineRAM(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
+{
+	lineRAM(x0, y0, x1, y1, _fillColor);
+}
+void SSD1357::lineRAM(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t value)
+{
+	uint8_t absY, absX;
+
+	if(y1 > y0)
+	{
+		absY = y1 - y0;
+	}
+	else
+	{
+		absY = y0 - y1;
+	}
+
+	if(x1 > x0)
+	{
+		absX = x1 - x0;
+	}
+	else
+	{
+		absX = x0 - x1;
+	}
+
+
+
+  	if( absY < absX )
+  	{
+	    if( x0 > x1 )
+	    {
+	      	plotLineLow(x1, y1, x0, y0, value, 0);
+	    }
+	    else
+	    {
+	      	plotLineLow(x0, y0, x1, y1, value, 0);
+	    }
+	}
+  	else
+	{
+
+    	if( y0 > y1 )
+      	{
+      		plotLineHigh(x1, y1, x0, y0, value, 0);
+      	}
+    	else
+    	{
+      		plotLineHigh(x0, y0, x1, y1, value, 0);
+  		}
+	}
+}
+
+void SSD1357::lineWideRAM(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint8_t width)
+{
+	lineWideRAM(x0, y0, x1, y1, _fillColor, width);
+}
+void SSD1357::lineWideRAM(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t value, uint8_t width)
+{
+	uint8_t absY, absX;
+
+	if(y1 > y0)
+	{
+		absY = y1 - y0;
+	}
+	else
+	{
+		absY = y0 - y1;
+	}
+
+	if(x1 > x0)
+	{
+		absX = x1 - x0;
+	}
+	else
+	{
+		absX = x0 - x1;
+	}
+
+
+
+  	if( absY < absX )
+  	{
+	    if( x0 > x1 )
+	    {
+	      	plotLineLow(x1, y1, x0, y0, value, width);
+	    }
+	    else
+	    {
+	      	plotLineLow(x0, y0, x1, y1, value, width);
+	    }
+	}
+  	else
+	{
+
+    	if( y0 > y1 )
+      	{
+      		plotLineHigh(x1, y1, x0, y0, value, width);
+      	}
+    	else
+    	{
+      		plotLineHigh(x0, y0, x1, y1, value, width);
+  		}
+	}
+}
+
+void SSD1357::lineHRAM(uint8_t x, uint8_t y, uint8_t width)
+{
+	lineHRAM(x, y, width, _fillColor);
+}
+void SSD1357::lineHRAM(uint8_t x, uint8_t y, uint8_t width, uint16_t value)
+{
+	fast_filled_rectangle(x, y, x+width, y, value);
+}
+
+void SSD1357::lineVRAM(uint8_t x, uint8_t y, uint8_t height)
+{
+	lineVRAM(x, y, height, _fillColor);
+}
+void SSD1357::lineVRAM(uint8_t x, uint8_t y, uint8_t height, uint16_t value)
+{
+	fast_filled_rectangle(x, y, x, y+height, value);
+}
+
+
+void SSD1357::rectRAM(uint8_t x, uint8_t y, uint8_t width, uint8_t height)
+{
+	rectRAM(x, y, width, height, _fillColor);
+}
+void SSD1357::rectRAM(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint16_t value)
+{
+	fast_filled_rectangle(x, y, x, y+height, value);
+	fast_filled_rectangle(x+width, y, x+width, y+height, value);
+	fast_filled_rectangle(x, y, x+width, y, value);
+	fast_filled_rectangle(x, y+height, x+width, y+height, value);
+}
+void SSD1357::rectFillRAM(uint8_t x, uint8_t y, uint8_t width, uint8_t height)
+{
+	rectFillRAM(x, y, width, height, _fillColor);
+}
+void SSD1357::rectFillRAM(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint16_t value)
+{
+	fast_filled_rectangle(x, y, x+width, y+height, value);
+}
+
+void SSD1357::fast_filled_rectangle(int8_t x0, int8_t y0, int8_t x1, int8_t y1, int16_t value)
+{
+	// This uses the boundaries on write_ram to quickly fill a given rectangle
+	boolean x0offscreen = false;
+	boolean x1offscreen = false;
+	boolean y0offscreen = false;
+	boolean y1offscreen = false;
+
+	// Ensure bounds are good
+	if(x0 >= SSD1357_MAX_WIDTH)
+	{
+		x0 = SSD1357_MAX_WIDTH-1;
+		x0offscreen = true;
+	}
+	if(x1 >= SSD1357_MAX_WIDTH)
+	{
+		x1 = SSD1357_MAX_WIDTH-1;
+		x1offscreen = true;
+	}
+	if(y0 >= SSD1357_MAX_HEIGHT)
+	{
+		y0 = SSD1357_MAX_HEIGHT-1;
+		y0offscreen = true;
+	}
+	if(y1 >= SSD1357_MAX_HEIGHT)
+	{
+		y1 = SSD1357_MAX_HEIGHT-1;
+		y1offscreen = true;
+	}
+
+	if(x0 < 0)
+	{
+		x0 = 0;
+		x0offscreen = true;
+	}
+	if(x1 < 0)
+	{
+		x1 = 0;
+		x1offscreen = true;
+	}
+	if(y0 < 0)
+	{
+		y0 = 0;
+		y0offscreen = true;
+	}
+	if(y1 < 0)
+	{
+		y1 = 0;
+		y1offscreen = true;
+	}
+
+	if((x1offscreen == true) && (x0offscreen == true))
+	{
+		return;
+	}
+	if((y1offscreen == true) && (y0offscreen == true))
+	{
+		return;
+	}
+
+
+
+	// Ensure the order is right
+	if(x0 > x1)
+	{
+		uint8_t temp = x0;
+		x0 = x1;
+		x1 = temp;
+	}
+
+	if(y0 > y1)
+	{
+		uint8_t temp = y0;
+		y0 = y1;
+		y1 = temp;
+	}
+
+	uint8_t width = x1-x0+1;
+	uint8_t height = y1-y0+1;
+
+	uint8_t rows_per_block = SSD1357_WORKING_BUFF_NUM_PIXELS / width;
+	uint8_t num_full_blocks = height/rows_per_block;
+	uint8_t remaining_rows = height - (num_full_blocks * rows_per_block);
+
+	uint8_t offsety = 0;
+
+	for(uint8_t indi = 0; indi < num_full_blocks; indi++)
+	{
+		fill_working_buffer(value, rows_per_block*width);
+		write_ram(working_buff, y0+offsety, x0, y1, x1, 2*rows_per_block*width);
+		offsety += rows_per_block;
+	}
+	fill_working_buffer(value, remaining_rows*width);
+	write_ram(working_buff, y0+offsety, x0, y1, x1, 2*remaining_rows*width);
+}
+
+void SSD1357::circleRAM(uint8_t x, uint8_t y, uint8_t radius)
+{
+	circleRAM(x, y, radius, _fillColor);
+}
+
+void SSD1357::circleRAM(uint8_t x, uint8_t y, uint8_t radius, uint16_t value)
+{
+	if(radius < 2)
+	{
+		circle_Bresenham(x, y, radius, value, false);
+	}
+	else
+	{
+		circle_midpoint(x, y, radius, value, false);
+	}
+	
+}
+void SSD1357::circleFillRAM(uint8_t x, uint8_t y, uint8_t radius)
+{
+	circleFillRAM(x, y, radius, _fillColor);
+}
+
+void SSD1357::circleFillRAM(uint8_t x, uint8_t y, uint8_t radius, uint16_t value)
+{	
+    if(radius < 2)
+	{
+		circle_Bresenham(x, y, radius, value, true);
+	}
+	else
+	{
+		circle_midpoint(x, y, radius, value, true);
+	}
+}	
+
+
+
+
+
+
+
+// Proteted drawing functions
+void SSD1357::fill_working_buffer(uint16_t value, uint8_t num_pixels)
+{
+	if(num_pixels > SSD1357_WORKING_BUFF_NUM_PIXELS)
+	{
+		num_pixels = SSD1357_WORKING_BUFF_NUM_PIXELS;
+	}
+
+	for(uint8_t indi = 0; indi < num_pixels; indi++)
+	{
+		working_buff[2*indi + 0] = ((value & 0xFF00) >> 8);
+		working_buff[2*indi + 1] = ((value & 0x00FF) >> 0);
+	}
+}
+
+void SSD1357::plotLineLow(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t value, uint8_t width)
+{
+  uint8_t dx = x1 - x0;	// Guaranteed positive
+  int8_t dy = y1 - y0;
+  int8_t yi = 1;
+  if( dy < 0 )
+  {
+  	yi = -1;
+    dy = -dy;
+  }
+  int16_t D = 2*dy - dx;
+  uint8_t y = y0;
+
+  for(uint8_t x = x0; x < x1; x++)
+  {
+  	if(width < 2)
+  	{
+  		setPixelRAM(x, y, value);
+  	}
+  	else
+  	{
+  		circleFillRAM(x, y, width/2, value);
+  	}
+    if( D > 0 )
+    {
+       y = y + yi;
+       D = D - 2*dx;
+    }
+    D = D + 2*dy;
+  }
+}
+void SSD1357::plotLineHigh(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t value, uint8_t width)
+{
+  uint8_t dy = y1 - y0;	// Guaranteed positive
+  int8_t dx = x1 - x0;
+  int8_t xi = 1;
+  if( dx < 0 )
+  {
+  	xi = -1;
+    dx = -dx;
+  }
+  int16_t D = 2*dx - dy;
+  uint8_t x = x0;
+
+  for(uint8_t y = y0; y < y1; y++)
+  {
+  	if(width < 2)
+  	{
+  		setPixelRAM(x, y, value);
+  	}
+  	else
+  	{
+  		circleFillRAM(x, y, width/2, value);
+  	}
+    if( D > 0 )
+    {
+       x = x + xi;
+       D = D - 2*dy;
+    }
+    D = D + 2*dx;
+  }
+}
+
+void SSD1357::circle_eight(uint8_t xc, uint8_t yc, int16_t dx, int16_t dy, uint16_t value, boolean fill)
+{
+	setPixelRAM(xc+dx, yc+dy, value);
+	setPixelRAM(xc-dx, yc+dy, value);
+	setPixelRAM(xc+dx, yc-dy, value);
+	setPixelRAM(xc-dx, yc-dy, value);
+	setPixelRAM(xc+dy, yc+dx, value);
+	setPixelRAM(xc-dy, yc+dx, value);
+	setPixelRAM(xc+dy, yc-dx, value);
+	setPixelRAM(xc-dy, yc-dx, value);
+
+	if(fill)
+	{
+		fast_filled_rectangle(xc-dx, yc+dy, xc+dx, yc+dy, value);
+    	fast_filled_rectangle(xc-dx, yc-dx, xc+dx, yc-dx, value);
+    	fast_filled_rectangle(xc-dy, yc+dx, xc+dy, yc+dx, value);
+    	fast_filled_rectangle(xc-dy, yc-dx, xc+dy, yc-dx, value);
+	}
+}
+
+void SSD1357::circle_Bresenham(uint8_t x, uint8_t y, uint8_t radius, uint16_t value, boolean fill)
+{
+	// Thanks to the tutorial here: https://www.geeksforgeeks.org/bresenhams-circle-drawing-algorithm/
+	uint8_t dx = 0;
+	uint8_t dy = radius;
+	uint8_t D = 3 - 2*radius;
+
+	if(fill)
+	{
+		setPixelRAM(x, y, value);
+		if(radius == 0)
+		{
+			return;
+		}
+	}
+
+	while(dy >= dx)
+	{
+		circle_eight(x, y, dx, dy, value, fill);
+		dx++;
+		if(D > 0)
+		{
+			dy--; 
+		    D = D + 4 * (dx - dy) + 10;
+		}
+		else
+		{
+			D = D + 4 * dx + 6;
+		}
+	}
+}
+
+void SSD1357::circle_midpoint(uint8_t xc, uint8_t yc, uint8_t radius, uint16_t value, boolean fill)
+{		
+	// Thanks to the tutorial here: https://www.geeksforgeeks.org/mid-point-circle-drawing-algorithm/
+    uint8_t dx = radius;
+    uint8_t dy = 0;
+
+    // Set first or center pixel
+    setPixelRAM(xc+dx, yc+dy, value);
+    if (radius > 0)
+    {
+       	setPixelRAM(xc-dx, yc+dy, value);
+        setPixelRAM(xc+dy, yc-dx, value);
+        setPixelRAM(xc+dy, yc+dx, value);
+
+        if(fill)
+        {
+        	fast_filled_rectangle(xc-dx, yc, xc+dx, yc, value);
+        	fast_filled_rectangle(xc, yc-dx, xc, yc+dx, value);
+        }
+    }
+
+    // Initializing the value of P
+    int16_t P = 1 - radius;
+    while (dx > dy)
+    { 
+        dy++;
+        
+        if (P <= 0)
+        {
+        	// Mid-point is inside or on the perimeter
+            P = P + 2*dy + 1;
+        }
+        else
+        {
+        	// Mid-point is outside the perimeter
+            dx--;
+            P = P + 2*dy - 2*dx + 1;
+        }
+         
+        // All the perimeter points have already been printed
+        if (dx < dy)
+        {
+            break;
+        }
+
+        setPixelRAM(xc+dx, yc+dy, value);
+        setPixelRAM(xc-dx, yc+dy, value);
+        setPixelRAM(xc+dx, yc-dy, value);
+        setPixelRAM(xc-dx, yc-dy, value);
+
+        if(fill)
+        {
+        	fast_filled_rectangle(xc-dx, yc+dy, xc+dx, yc+dy, value);
+        	fast_filled_rectangle(xc-dx, yc-dy, xc+dx, yc-dy, value);
+        }
+         
+        // If the generated point is on the line x = y then 
+        // the perimeter points have already been printed
+        if (dx != dy)
+        {
+            setPixelRAM(xc+dy, yc+dx, value);
+        	setPixelRAM(xc-dy, yc+dx, value);
+        	setPixelRAM(xc+dy, yc-dx, value);
+        	setPixelRAM(xc-dy, yc-dx, value);
+
+        	if(fill)
+	        {
+	        	fast_filled_rectangle(xc-dy, yc+dx, xc+dy, yc+dx, value);
+	        	fast_filled_rectangle(xc-dy, yc-dx, xc+dy, yc-dx, value);
+	        }
+        }
+    } 
+}
+
