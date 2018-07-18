@@ -25,27 +25,6 @@ Owen Lyke
 	#include "util/font5x7.h"
 #endif /* SSD1357_DONT_USE_DEF_FONT */
 
-#define SSD1357_SPI_DATA_ORDER MSBFIRST
-#define SSD1357_SPI_MODE SPI_MODE3
-#define SSD1357_SPI_MAX_FREQ 10000000
-
-#define SSD1357_MAX_WIDTH 128
-#define SSD1357_MAX_HEIGHT 128
-
-#define SSD1357_START_ROW 0
-#define SSD1357_START_COL 0
-
-#define SSD1357_STOP_ROW 127
-#define SSD1357_STOP_COL 127
-
-#define SSD1357_WORKING_BUFF_NUM_PIXELS	128
-#define SSD1357_BYTES_PER_PIXEL 2
-
-#define SSD1357_COLOR_MODE_256 0x00
-#define SSD1357_COLOR_MODE_65k 0x01
-// #define SSD1357_COLOR_MODE_p262k1 0x02
-// #define SSD1357_COLOR_MODE_p262k2 0x03
-
 
 
 
@@ -62,12 +41,13 @@ private:
 protected:
 	uint8_t _fontWidth, _fontHeight, _startCharASCII, _totalCharsASCII, _fontHeaderSize;
 	uint32_t _fontMapWidth;
-	
 
 public:
 	const unsigned char * fontMapPtr;
 	uint8_t * charDataPtr;
 	uint8_t frameData[4];
+
+	uint16_t _foregroundColor, _backgroundColor;
 
 	MicroviewMonochromeProgMemBMPFont(const unsigned char * pMap, uint8_t * pPad, uint8_t headerSize);
 
@@ -88,6 +68,31 @@ public:
 
 
 
+
+/*
+
+	SSD1357 OLED Driver
+
+*/
+
+#define SSD1357_SPI_DATA_ORDER MSBFIRST
+#define SSD1357_SPI_MODE SPI_MODE3
+#define SSD1357_SPI_MAX_FREQ 10000000
+
+#define SSD1357_MAX_WIDTH 128
+#define SSD1357_MAX_HEIGHT 128
+
+#define SSD1357_START_ROW 0
+#define SSD1357_START_COL 0
+
+#define SSD1357_STOP_ROW 127
+#define SSD1357_STOP_COL 127
+
+#define SSD1357_WORKING_BUFF_NUM_PIXELS	128
+#define SSD1357_BYTES_PER_PIXEL 2
+
+#define SSD1357_COLOR_MODE_256 0x00
+#define SSD1357_COLOR_MODE_65k 0x01
 
 typedef enum{
 	SSD1357_CMD_SetColumnAddress = 0x15,
@@ -139,32 +144,26 @@ typedef enum{
 	SSD1357_SCROLL_START
 }SSD1357_CMD_TypeDef;
 
-
-
 class SSD1357 : public Print {
 private:
-	
 protected:
-
-	uint8_t _dc, _rst, _cs;
-	SPIClass * _spi;
-
-	uint32_t _spiFreq;
-
+	uint8_t _dc, _rst, _cs;		// Pin definitions
+	SPIClass * _spi;			// Which SPI port to use (bit-banging is not supported yet... you could add it!)
+	uint32_t _spiFreq;			// How fast to send data to the display
 	uint8_t _width, _height;	// Physical dimensions of the display that the driver is connected to. Limited to 128x128
-
 	uint8_t _colorMode;			// Knows if the display is in 65k or 256 color mode
 	uint16_t _fillColor;		// The default color to use 
 
-	uint8_t _cursorX, _cursorY, _xReset, _yReset, _xMargin, _yMargin; // These values are stored to allow the user not to have to send all the cursor values every time...
-	
+	uint8_t _cursorX, _cursorY, _xReset, _yReset, _xMargin, _yMargin; // Gives a memory of cursor settings
 
+	// Font interface functions
 	uint8_t * getFontBMP(uint8_t val);
 	uint8_t * getFontAlpha(uint8_t val);
 	uint8_t * getFontFrameData(uint8_t val);
 	bool fontCallback( uint8_t val);
 
-	void 		* _object2operateOn;
+	// Function pointers that define the current font
+	void 		* _object2operateOn;											// Pointer to the font object itself
 	uint8_t 	* (*_userBMPFuncPtr)(void *, uint8_t, uint16_t, uint16_t);
 	uint8_t 	* (*_userAlphaFuncPtr)(void *, uint8_t, uint16_t, uint16_t);
 	uint8_t 	* (*_userFrameFuncPtr)(void *, uint8_t, uint16_t, uint16_t);
@@ -185,7 +184,7 @@ protected:
 
 public:
 
-	SSD1357( void );
+	SSD1357( void );		// Constructor
 
 	virtual void begin(uint8_t dcPin, uint8_t rstPin, uint8_t csPin, SPIClass &spiInterface = SPI, uint32_t spiFreq = SSD1357_SPI_MAX_FREQ);
 	void startup( void );
@@ -193,12 +192,11 @@ public:
 	void setCSlow( void );
 	void setCShigh(void);
 
-	void 	write_bytes(uint8_t * pdata, bool DATAcmd, uint16_t size);
-	void 	write_ram(uint8_t * pdata, uint8_t startrow, uint8_t startcol, uint8_t stoprow, uint8_t stopcol, uint16_t size);		// Raw data write to the GDDRAM 
+	void write_bytes(uint8_t * pdata, bool DATAcmd, uint16_t size);																// Send data to SSD1357 with the proper D/C level
+	void write_ram(uint8_t * pdata, uint8_t startrow, uint8_t startcol, uint8_t stoprow, uint8_t stopcol, uint16_t size);		// Raw data write to the GDDRAM 
 
-
-	// From print library
-	size_t write(uint8_t);
+	// Implementation of 'write' so that the print superclass will be supported
+	size_t write(uint8_t);	
 
 	// Change settings
 	void setColumnAddress(uint8_t start, uint8_t stop);
@@ -244,21 +242,24 @@ public:
 					uint8_t * (*AlphaFuncPtr)(void * pt2Object, uint8_t, uint16_t, uint16_t),
 					uint8_t * (*frameFuncPtr)(void * pt2Object, uint8_t, uint16_t, uint16_t), 
 					bool 	(*fontCallbackPtr)(void * pt2Object, uint8_t, uint16_t, uint16_t),
-					void 	(*resetCursorValuesPtr)(void * pt2Object, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t)
+					void 	(*setCursorValuesPtr)(void * pt2Object, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t)
 					);
 	void 	linkDefaultFont( void );
 	void 	setFontCursorValues(uint8_t x, uint8_t y, uint8_t xReset, uint8_t yReset, uint8_t xMargin, uint8_t yMargin);	// This guarantees that the user can always interact with the cursor reset function, even if the font is the default font that they can't access in the main file
 	void 	setCursorRAM(uint8_t x, uint8_t y);
+	void 	setDefaultFontColors(uint16_t foreground, uint16_t background);
 
 
 	// Drawing functions - based on RAM coordinates
+	void setFillColor(uint16_t color);
+
 	void setPixelRAM(uint8_t x, uint8_t y);
 	void setPixelRAM(uint8_t x, uint8_t y, uint16_t value);
 
 	void lineRAM(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1);
 	void lineRAM(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t value);
 	void lineWideRAM(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint8_t width);
-	void lineWideRAM(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t value, uint8_t width);
+	void lineWideRAM(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint8_t width, uint16_t value);
 	void lineHRAM(uint8_t x, uint8_t y, uint8_t width);
 	void lineHRAM(uint8_t x, uint8_t y, uint8_t width, uint16_t value);
 	void lineVRAM(uint8_t x, uint8_t y, uint8_t height);

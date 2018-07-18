@@ -92,6 +92,9 @@ void RGB_OLED_64x64::defaultConfigure( void )
   	setRowAddress(OLED_64x64_START_ROW, OLED_64x64_STOP_ROW);
   	setDisplayMode(SSD1357_CMD_SDM_RESET);
 
+  	setWidth(64);
+  	setHeight(64);
+
   	setSleepMode(false);
 
   	delay(200);

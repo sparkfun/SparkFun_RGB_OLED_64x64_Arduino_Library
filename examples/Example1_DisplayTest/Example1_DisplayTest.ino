@@ -4,7 +4,9 @@
   SparkFun Electronics
   Date: July 17th 2018
   License: This code is public domain but you buy me a beer if you use this and we meet someday (Beerware license).
-
+  Please, if anything is unclear or needs to be fixed let me know about it by submitting an issue on github! 
+  https://github.com/sparkfun/Sparkfun_RGB_OLED_64x64_Arduino_Library
+  
   Example1_DisplayTest
 
   Hardware:

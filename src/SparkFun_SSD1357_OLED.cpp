@@ -1,11 +1,17 @@
-
 /*
-INDEX:
+SparkFun_SSD1357_OLED.cpp
+
+This is the implemenation of the methods in 'SparkFun_SSD1357_OLED.h'
+intended for use in the Aduino IDE. 
+
+There are three main parts:
+1) Implementation of the default font class 'MicroviewMonochromeProgMemBMPFont'
 
 
+Owen Lyke
+July 2018
 
 */
-
 #include "SparkFun_SSD1357_OLED.h"
 
 
@@ -28,6 +34,9 @@ MicroviewMonochromeProgMemBMPFont::MicroviewMonochromeProgMemBMPFont(const unsig
 	charDataPtr = pPad;
 	// alphaDataPtr = pAlphaPad;
 	_fontHeaderSize = headerSize;
+
+	_foregroundColor = 0xFFFF;
+	_backgroundColor = 0x0000;
 
 	_prevWriteCausedNewline = false;
 
@@ -69,13 +78,13 @@ uint8_t * MicroviewMonochromeProgMemBMPFont::getBMP(uint8_t val, uint16_t screen
 
 		if(data_byte & (0x01 << bit_index))
 		{
-			*(charDataPtr + char_index) = 0xFF;
-			*(charDataPtr + char_index + 1) = 0xFF; 
+			*(charDataPtr + char_index) = ((_foregroundColor & 0xFF00) >> 8);
+			*(charDataPtr + char_index + 1) = (_foregroundColor & 0x00FF); 
 		}
 		else
 		{
-			*(charDataPtr + char_index) = 0x00;
-			*(charDataPtr + char_index + 1) = 0x00; 
+			*(charDataPtr + char_index) = ((_backgroundColor & 0xFF00) >> 8);
+			*(charDataPtr + char_index + 1) = (_backgroundColor & 0x00FF); 
 		}
 	}
 	return charDataPtr;	// Return a pointer to the data so that the OLED driver knows where to find it
@@ -116,7 +125,8 @@ bool MicroviewMonochromeProgMemBMPFont::advanceState(uint8_t val, uint16_t scree
 		if(!_prevWriteCausedNewline)
 		{
 			newX = reset_x;
-			newY += _fontHeight + 1;
+			// newY += _fontHeight + 1;
+			newY += _fontHeight;
 
 			cursor_x = newX;
 			cursor_y = newY;
@@ -136,11 +146,13 @@ bool MicroviewMonochromeProgMemBMPFont::advanceState(uint8_t val, uint16_t scree
 
 	// If the character that is about to be printed is not a newline character then it will probably take up space and so the cursor should be incremented. 
 	// Its OK to increment cursor data because the frame data exists in another array that the driver will access 
-	newX += _fontWidth + 1;	// Move left-to-right first
+	// newX += _fontWidth + 1;	// Move left-to-right first
+	newX += _fontWidth;
 	if((newX > (margin_x - _fontWidth)))	// But start a new line if you go over the edge
 	{
 		newX = reset_x;
-		newY += _fontHeight + 1;		//
+		// newY += _fontHeight + 1;
+		newY += _fontHeight;
 
 		_prevWriteCausedNewline = true;
 
@@ -904,6 +916,11 @@ uint8_t 	SSD1357::getHeight( void )
 	return _height;
 }
 
+uint32_t	SSD1357::getSPIFreq( void )
+{
+	return _spiFreq;
+}
+
 void 		SSD1357::setWidth(uint8_t val)
 {
 	_width = val;
@@ -919,11 +936,7 @@ void 		SSD1357::setSPIFreq(uint32_t freq)
 	_spiFreq = freq;
 }
 
-uint32_t	SSD1357::getSPIFreq( void )
-{
-	return _spiFreq;
-}
-
+// Set a new font by supplying all required function pointers
 void 	SSD1357::setFont(
 					void * object,
 					uint8_t * (*BMPFuncPtr)(void *, uint8_t, uint16_t, uint16_t), 
@@ -941,6 +954,7 @@ void 	SSD1357::setFont(
 	_userFontSetCursorValuesPtr = setCursorValuesPtr;
 }
 
+// Set all font function pointers to the default functions
 void SSD1357::linkDefaultFont( void )
 {
 	// Load the default font
@@ -956,6 +970,7 @@ void SSD1357::linkDefaultFont( void )
 	SSD1357DefFont5x7.setCursorValues(0, 0, 0, 0, 127, 127);	// These are the maximum values allowed in the SSD1357
 }
 
+// Set cursor location, reset location, and margins
 void 	SSD1357::setFontCursorValues(uint8_t x, uint8_t y, uint8_t xReset, uint8_t yReset, uint8_t xMargin, uint8_t yMargin)
 {
 	_cursorX = x;			// Store the newest values for ease
@@ -967,24 +982,19 @@ void 	SSD1357::setFontCursorValues(uint8_t x, uint8_t y, uint8_t xReset, uint8_t
 	(*_userFontSetCursorValuesPtr)(_object2operateOn, (uint16_t)x, (uint16_t)y, (uint16_t)xReset, (uint16_t)yReset, (uint16_t)xMargin, (uint16_t)yMargin);
 }
 
+// Moves the cursor while keeping the reset location and margins intact
 void SSD1357::setCursorRAM(uint8_t x, uint8_t y)
 {
 	// Just moves the cursor, doesn't change margins or reset values
 	setFontCursorValues(x, y, _xReset, _yReset, _xMargin, _yMargin);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
+// This function exists to allow the user access to the default font colors
+void SSD1357::setDefaultFontColors(uint16_t foreground, uint16_t background)
+{
+	SSD1357DefFont5x7._foregroundColor = foreground;
+	SSD1357DefFont5x7._backgroundColor = background;
+}
 
 
 
@@ -1006,6 +1016,11 @@ uint16_t get65kValueHSV(uint16_t hue, uint8_t sat, uint8_t val)
 	uint8_t r, g, b;
 	fast_hsv2rgb_32bit(hue, sat, val, &r, &g, &b);
 	return get65kValueRGB(r, g, b);
+}
+
+void SSD1357::setFillColor(uint16_t color)
+{
+	_fillColor = color;
 }
 
 void SSD1357::setPixelRAM(uint8_t x, uint8_t y)
@@ -1085,7 +1100,7 @@ void SSD1357::lineWideRAM(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint8_
 {
 	lineWideRAM(x0, y0, x1, y1, _fillColor, width);
 }
-void SSD1357::lineWideRAM(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint16_t value, uint8_t width)
+void SSD1357::lineWideRAM(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint8_t width, uint16_t value)
 {
 	uint8_t absY, absX;
 
@@ -1421,6 +1436,12 @@ void SSD1357::circle_Bresenham(uint8_t x, uint8_t y, uint8_t radius, uint16_t va
 		{
 			return;
 		}
+	}
+
+	if(radius == 0)
+	{
+		setPixelRAM(x, y, value);
+		return;
 	}
 
 	while(dy >= dx)

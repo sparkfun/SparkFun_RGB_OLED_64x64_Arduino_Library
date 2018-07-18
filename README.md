@@ -1,13 +1,10 @@
-SparkFun LPS25HB Absolute Barometric Pressure Sensor Arduino Library
+SparkFun RGB OLED 64x64 Display Arduino Library
 ========================================
 
-![SparkFun Qwiic Pressure Sensor w/ LPS25HB](https://cdn.sparkfun.com//assets/parts/1/3/0/1/3/14767-Qwiic_Pressure_Sensor_-_LPS25HB-05.jpg)
+![SparkFun RGB OLED 64x64 Display Breakout - SSD1357](https://cdn.sparkfun.com/assets/parts/1/3/1/3/5/14860-RGB_OLED_64x64_Breakout-01.jpg)
+[*SparkFun RGB OLED 64x64 Display Breakout - SSD1357*](https://www.sparkfun.com/products/14860)
 
-[*SparkFun Qwiic Pressure Sensor w/ LPS25HB (SPX-14767)*](https://www.sparkfun.com/products/14767)
-
-An Arduino library that provides basic functions for getting pressure and temperature readings. 
-Allows the user to support up to two sensors on a given I2C bus, and allows use of multiple I2C busses.
-Additional access to settings is available for advanced use.
+A fully featured Arduino library to support the RGB OLED 64x64 Display Breakout. This includes an API to the SSD1357 OLED driver via SPI and an interface built on top of that for use with the WiseChip UG-6464TDDBG01 0.6" OLED panel. Main features are direct access to display RAM, drawing functions for pixels, lines, rectangles, and circles, and text display. A default font is built-in, and additional fonts can be hooked in by the user. 
 
 Repository Contents
 -------------------
@@ -25,13 +22,12 @@ Documentation
 Products that use this Library 
 ---------------------------------
 
-* [SPX-14767](https://www.sparkfun.com/products/14767) - SparkX version
+* [SPX-14860](https://www.sparkfun.com/products/14860) - SparkX version
 
 Version History
 ---------------
-* [V 1.0.1](https://github.com/sparkfun/SparkFun_LPS25HB_Arduino_Library/tree/V_1.0.1) - Initial release
-* [V 1.0.2](https://github.com/sparkfun/SparkFun_LPS25HB_Arduino_Library/tree/V_1.0.2) - Boolean returns
-* [V 1.0.3](https://github.com/sparkfun/SparkFun_LPS25HB_Arduino_Library/tree/V_1.0.3) - Fixed reading bug
+* [V 1.0.0](https://github.com/sparkfun/SparkFun_LPS25HB_Arduino_Library/tree/V_1.0.1) - Initial release
+
 
 License Information
 -------------------
