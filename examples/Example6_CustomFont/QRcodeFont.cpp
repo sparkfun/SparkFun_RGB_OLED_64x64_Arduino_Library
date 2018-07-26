@@ -158,31 +158,31 @@ uint8_t * QRcodeFont::getBMP(uint8_t val, uint16_t screen_width, uint16_t screen
 uint8_t * QRcodeFont::Wrapper_to_call_getBMP(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height)
 {
   QRcodeFont * self = (QRcodeFont *)pt2Object;
-  self->getBMP(val, screen_width, screen_height);
+  return self->getBMP(val, screen_width, screen_height);
 }
 
 uint8_t * QRcodeFont::Wrapper_to_call_getAlpha(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height)
 {
   QRcodeFont * self = (QRcodeFont *)pt2Object;
-  self->getAlpha(val, screen_width, screen_height);
+  return self->getAlpha(val, screen_width, screen_height);
 }
 
 uint8_t * QRcodeFont::Wrapper_to_call_getFrameData(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height)
 {
   QRcodeFont * self = (QRcodeFont *)pt2Object;
-  self->getFrameData(val, screen_width, screen_height);
+  return self->getFrameData(val, screen_width, screen_height);
 }
 
 bool QRcodeFont::Wrapper_to_call_advanceState(void * pt2Object, uint8_t val, uint16_t screen_width, uint16_t screen_height)
 {
   QRcodeFont * self = (QRcodeFont *)pt2Object;
-  self->advanceState(val, screen_width, screen_height);
+  return self->advanceState(val, screen_width, screen_height);
 }
 
 void QRcodeFont::Wrapper_to_call_setCursorValues(void * pt2Object, uint16_t x, uint16_t y, uint16_t xReset, uint16_t yReset, uint16_t xMargin, uint16_t yMargin)
 {
   QRcodeFont * self = (QRcodeFont *)pt2Object;
-  self->setCursorValues(x, y, xReset, yReset, xMargin, yMargin);
+  return self->setCursorValues(x, y, xReset, yReset, xMargin, yMargin);
 }
 
 uint16_t QRcodeFont::get65kValueRGB(uint8_t R, uint8_t G, uint8_t B)

@@ -369,10 +369,10 @@ size_t SSD1357::write(uint8_t val)
 	// Need code here to display a letter. Probably will need to advance a cursor index or something too
 	
 	#ifdef SSD1357_DONT_USE_DEF_FONT
-		if((_userBMPFuncPtr == NULL) || (_userFrameFuncPtr == NULL))
-		{
-			return 0;		// This is provided to prevent undefined behavior. Printing will simply do nothing
-		}
+	if((_userBMPFuncPtr == NULL) || (_userFrameFuncPtr == NULL))
+	{
+		return 0;		// This is provided to prevent undefined behavior. Printing will simply do nothing
+	}
 	#endif /* SSD1357_DONT_USE_DEF_FONT */
 
 	// If the user either:
@@ -391,7 +391,7 @@ size_t SSD1357::write(uint8_t val)
 
 	if((chardata == NULL) || (framedata == NULL))
 	{
-		return;	// Protect memory
+		return 0;	// Protect memory
 	}
 
 	if(print_char)
