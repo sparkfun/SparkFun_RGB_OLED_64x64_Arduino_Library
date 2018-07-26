@@ -43,7 +43,7 @@
   
 */
 
-#include "SparkFun_RGB_OLED_64x64.h"
+#include "SparkFun_RGB_OLED_64x64.h"        // Click here to get the library: http://librarymanager/All#SparkFun_RGB_OLED_64x64
 
 #define DRIVER_SPI SPI
 
