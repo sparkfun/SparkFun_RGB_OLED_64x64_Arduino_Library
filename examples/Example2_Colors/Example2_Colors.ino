@@ -61,20 +61,22 @@ void setup() {
    *  are just common 8-bit numbers from 0 - 255. 
    */
 
-  // Try changing the colors here and see how they come out on the display!
-  uint16_t myRGBcolor = get65kValueRGB(151,0,230);    // R, G, B  -  Each input can span from 0-255
-  uint16_t myHSVcolor = get65kValueHSV(0.25*HSV_HUE_MAX,255,255);    // hue, sat, val  -  Hue changes the color
-
-  myOLED.setCursor(0,0);
-  myOLED.print("RGB    HSV");
-  myOLED.rectFill(0,8,31,48,myRGBcolor);
-  myOLED.rectFill(32,8,31,48,myHSVcolor);
-  myOLED.rectFill(0,49,64,16,0xFFFF);           // You can of course also use constants for color... 
-                                                // Any number you use here in place of 0xFFFF (from 0 to 65535) 
-                                                // represents a unique color!
+//  // Try changing the colors here and see how they come out on the display!
+//  uint16_t myRGBcolor = get65kValueRGB(151,0,230);    // R, G, B  -  Each input can span from 0-255
+//  uint16_t myHSVcolor = get65kValueHSV(0.25*HSV_HUE_MAX,255,255);    // hue, sat, val  -  Hue changes the color
+//
+//  myOLED.setCursor(0,0);
+//  myOLED.print("RGB    HSV");
+//  myOLED.rectFill(0,8,31,48,myRGBcolor);
+//  myOLED.rectFill(32,8,31,48,myHSVcolor);
+//  myOLED.rectFill(0,49,64,16,0xFFFF);           // You can of course also use constants for color... 
+//                                                // Any number you use here in place of 0xFFFF (from 0 to 65535) 
+//                                                // represents a unique color!
   
 }
 
 void loop() {
   // No loop
+  myOLED.begin(DC_PIN, RST_PIN, CS_PIN, SPI, 4000000);                // Use 8 MHz SPI on Arduino Uno instead of the default/maximum (10 MHz)
+ 
 }
