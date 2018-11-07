@@ -1,7 +1,7 @@
 SparkFun RGB OLED 64x64 Display Arduino Library
 ========================================
 
-![SparkFun RGB OLED 64x64 Display Breakout - SSD1357](https://cdn.sparkfun.com/assets/parts/1/3/1/3/5/14860-RGB_OLED_64x64_Breakout-01.jpg)
+![SparkFun RGB OLED 64x64 Display Breakout - SSD1357](https://cdn.sparkfun.com/assets/parts/1/3/1/3/5/14860-RGB_OLED_64x64_Breakout-05a.jpg)
 
 [*SparkFun RGB OLED 64x64 Display Breakout - SSD1357*](https://www.sparkfun.com/products/14860)
 
